@@ -53,60 +53,13 @@ const STORAGE = {
   appMode: "tictide.appMode.v1",
 };
 
-const seedLogs = [
-  {
-    id: "seed-1",
-    createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-    ticName: "Shoulder shrug",
-    ticType: "Motor",
-    intensity: 6,
-    urge: 6,
-    contexts: ["School", "Stress"],
-    note: "Felt rushed this morning",
-    pain: "Mild",
-  },
-  {
-    id: "seed-2",
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
-    ticName: "Eye blink",
-    ticType: "Motor",
-    intensity: 4,
-    urge: 4,
-    contexts: ["Screen Time", "Focus"],
-    note: "After iPad time",
-    pain: "None",
-  },
-  {
-    id: "seed-3",
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-    ticName: "Throat clear",
-    ticType: "Vocal",
-    intensity: 3,
-    urge: 3,
-    contexts: ["Home", "Tired"],
-    note: "Before bed",
-    pain: "None",
-  },
-];
-
-const seedJournals = [
-  {
-    id: "journal-1",
-    createdAt: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
-    mood: "Okay",
-    urgeBefore: 6,
-    ticPressure: 5,
-    bodyFeeling: "Shoulders",
-    trigger: "School task felt rushed",
-    helped: "Slow breathing",
-    note: "He noticed pressure before the shoulder tic and calmed down after a short break.",
-  },
-];
+const emptyLogs = [];
+const emptyJournals = [];
 
 const defaultYgtss = {
-  motor: { number: 2, frequency: 3, intensity: 3, complexity: 1, interference: 2 },
-  vocal: { number: 1, frequency: 2, intensity: 2, complexity: 1, interference: 1 },
-  impairment: 10,
+  motor: { number: 0, frequency: 0, intensity: 0, complexity: 0, interference: 0 },
+  vocal: { number: 0, frequency: 0, intensity: 0, complexity: 0, interference: 0 },
+  impairment: 0,
   weekNote: "Use this as a weekly parent observation, not a formal clinician score.",
 };
 
@@ -125,24 +78,16 @@ const putsItems = [
 const defaultPuts = Object.fromEntries(putsItems.map((_, index) => [`item${index}`, 1]));
 
 const defaultProfile = {
-  childName: "Kai",
+  setupComplete: false,
+  childName: "",
   parentName: "",
-  adhdDiagnosed: true,
-  ticDuration: "About 3 years",
-  neuroPedStatus: "ADHD diagnosed; tic/Tourette diagnosis still for discussion",
-  medicationNote: "Previously tried risperidone as advised by neuro-pediatrician",
+  adhdDiagnosed: false,
+  ticDuration: "",
+  neuroPedStatus: "",
+  medicationNote: "",
 };
 
-const seedMeds = [
-  {
-    id: "med-1",
-    name: "Risperidone",
-    dose: "",
-    dates: "",
-    reason: "Tic/behavior support as advised by neuro-pediatrician",
-    response: "Add what helped, what did not, and side effects",
-  },
-];
+const emptyMeds = [];
 
 const defaultRedFlags = {
   pain: false,
@@ -156,8 +101,8 @@ const defaultRedFlags = {
 };
 
 const defaultAccess = {
-  childCode: "4286",
-  parentPin: "2468",
+  childCode: "",
+  parentPin: "",
 };
 
 const childViews = new Set(["home", "logs", "journal", "help"]);
@@ -177,11 +122,11 @@ const ygtssLabels = {
 };
 
 function App() {
-  const [logs, setLogs] = useStoredState(STORAGE.logs, seedLogs);
-  const [journals, setJournals] = useStoredState(STORAGE.journals, seedJournals);
+  const [logs, setLogs] = useStoredState(STORAGE.logs, emptyLogs);
+  const [journals, setJournals] = useStoredState(STORAGE.journals, emptyJournals);
   const [ygtss, setYgtss] = useStoredState(STORAGE.ygtss, defaultYgtss);
   const [puts, setPuts] = useStoredState(STORAGE.puts, defaultPuts);
-  const [meds, setMeds] = useStoredState(STORAGE.meds, seedMeds);
+  const [meds, setMeds] = useStoredState(STORAGE.meds, emptyMeds);
   const [profile, setProfile] = useStoredState(STORAGE.profile, defaultProfile);
   const [redFlags, setRedFlags] = useStoredState(STORAGE.redFlags, defaultRedFlags);
   const [access, setAccess] = useStoredState(STORAGE.access, defaultAccess);
@@ -189,8 +134,8 @@ function App() {
 
   const [activeView, setActiveView] = useState("home");
   const [formOpen, setFormOpen] = useState(false);
-  const [selectedContexts, setSelectedContexts] = useState(["Stress"]);
-  const [ticName, setTicName] = useState("Shoulder shrug");
+  const [selectedContexts, setSelectedContexts] = useState([]);
+  const [ticName, setTicName] = useState("Custom");
   const [ticType, setTicType] = useState("Motor");
   const [intensity, setIntensity] = useState(4);
   const [urge, setUrge] = useState(5);
@@ -207,6 +152,7 @@ function App() {
   const [running, setRunning] = useState(false);
   const isChildMode = appMode === "child";
   const isChildLocked = appMode === "child-lock";
+  const needsSetup = !profile.setupComplete;
 
   useEffect(() => {
     if (!import.meta.env.PROD || !("serviceWorker" in navigator)) return;
@@ -306,6 +252,37 @@ function App() {
   function enterChildMode() {
     setAppMode("child-lock");
     setActiveView("home");
+  }
+
+  function completeSetup(setup) {
+    setLogs([]);
+    setJournals([]);
+    setMeds([]);
+    setYgtss(defaultYgtss);
+    setPuts(defaultPuts);
+    setRedFlags(defaultRedFlags);
+    setAccess({
+      childCode: setup.childCode,
+      parentPin: setup.parentPin,
+    });
+    setProfile({
+      ...defaultProfile,
+      setupComplete: true,
+      childName: setup.childName,
+      parentName: setup.parentName,
+      adhdDiagnosed: setup.adhdDiagnosed,
+      ticDuration: setup.ticDuration,
+      neuroPedStatus: setup.neuroPedStatus,
+      medicationNote: setup.medicationNote,
+    });
+    setSelectedContexts([]);
+    setTicName("Custom");
+    setAppMode("parent");
+    setActiveView("home");
+  }
+
+  if (needsSetup) {
+    return <SetupView profile={profile} onComplete={completeSetup} />;
   }
 
   if (isChildLocked) {
@@ -529,6 +506,147 @@ function App() {
         </div>
       )}
     </div>
+  );
+}
+
+function SetupView({ profile, onComplete }) {
+  const isLegacyDemoProfile = !profile.setupComplete && profile.childName === "Kai";
+  const [childName, setChildName] = useState(profile.childName && !isLegacyDemoProfile ? profile.childName : "");
+  const [parentName, setParentName] = useState(profile.parentName || "");
+  const [adhdDiagnosed, setAdhdDiagnosed] = useState(isLegacyDemoProfile ? false : Boolean(profile.adhdDiagnosed));
+  const [ticDuration, setTicDuration] = useState(isLegacyDemoProfile ? "" : profile.ticDuration || "");
+  const [neuroPedStatus, setNeuroPedStatus] = useState(isLegacyDemoProfile ? "" : profile.neuroPedStatus || "");
+  const [medicationNote, setMedicationNote] = useState(isLegacyDemoProfile ? "" : profile.medicationNote || "");
+  const [childCode, setChildCode] = useState("");
+  const [parentPin, setParentPin] = useState("");
+  const [message, setMessage] = useState("Set this up before sharing the app with your child.");
+
+  function cleanCode(value) {
+    return value.replace(/\D/g, "").slice(0, 6);
+  }
+
+  function submitSetup(event) {
+    event.preventDefault();
+    if (!childName.trim()) {
+      setMessage("Add your child’s name first.");
+      return;
+    }
+    if (childCode.length < 4) {
+      setMessage("Use at least 4 numbers for the child code.");
+      return;
+    }
+    if (parentPin.length < 4) {
+      setMessage("Use at least 4 numbers for the parent PIN.");
+      return;
+    }
+    if (childCode === parentPin) {
+      setMessage("Use different numbers for the child code and parent PIN.");
+      return;
+    }
+    onComplete({
+      childName: childName.trim(),
+      parentName: parentName.trim(),
+      adhdDiagnosed,
+      ticDuration: ticDuration.trim(),
+      neuroPedStatus: neuroPedStatus.trim(),
+      medicationNote: medicationNote.trim(),
+      childCode,
+      parentPin,
+    });
+  }
+
+  return (
+    <main className="access-screen setup-screen">
+      <section className="access-card setup-card">
+        <Brand />
+        <div className="access-hero setup-hero">
+          <div className="avatar large" aria-hidden="true">
+            {childName.trim() ? childName.trim().slice(0, 1).toUpperCase() : <UserRound size={28} />}
+          </div>
+          <div>
+            <h1>Set up TicTide</h1>
+            <p>Create your child’s private profile before handing over the tablet.</p>
+          </div>
+        </div>
+
+        <form className="setup-form" onSubmit={submitSetup}>
+          <Panel>
+            <div className="panel-title-row">
+              <div>
+                <h2>Child profile</h2>
+                <p className="panel-subtitle">No demo user will be shown after this.</p>
+              </div>
+              <UserRound className="title-wave" aria-hidden="true" />
+            </div>
+            <div className="form-grid compact">
+              <label>
+                Child name
+                <input value={childName} onChange={(event) => setChildName(event.target.value)} autoComplete="off" required />
+              </label>
+              <label>
+                Parent name
+                <input value={parentName} onChange={(event) => setParentName(event.target.value)} autoComplete="name" placeholder="Optional" />
+              </label>
+            </div>
+            <label className="flag setup-check">
+              <input type="checkbox" checked={adhdDiagnosed} onChange={(event) => setAdhdDiagnosed(event.target.checked)} />
+              ADHD already diagnosed
+            </label>
+          </Panel>
+
+          <Panel>
+            <div className="panel-title-row">
+              <div>
+                <h2>Access codes</h2>
+                <p className="panel-subtitle">Child code opens Child Mode. Parent PIN protects reports and settings.</p>
+              </div>
+              <LockKeyhole className="title-wave" aria-hidden="true" />
+            </div>
+            <div className="form-grid compact">
+              <label>
+                Child code
+                <input value={childCode} onChange={(event) => setChildCode(cleanCode(event.target.value))} inputMode="numeric" autoComplete="one-time-code" placeholder="4 to 6 numbers" required />
+              </label>
+              <label>
+                Parent PIN
+                <input value={parentPin} onChange={(event) => setParentPin(cleanCode(event.target.value))} inputMode="numeric" type="password" placeholder="4 to 6 numbers" required />
+              </label>
+            </div>
+          </Panel>
+
+          <Panel>
+            <div className="panel-title-row">
+              <div>
+                <h2>Care notes</h2>
+                <p className="panel-subtitle">Optional notes for the parent report.</p>
+              </div>
+              <ClipboardList className="title-wave" aria-hidden="true" />
+            </div>
+            <div className="form-grid">
+              <label>
+                Tic duration
+                <input value={ticDuration} onChange={(event) => setTicDuration(event.target.value)} placeholder="Example: about 3 years" />
+              </label>
+              <label>
+                Neuro-ped status
+                <textarea value={neuroPedStatus} onChange={(event) => setNeuroPedStatus(event.target.value)} placeholder="Diagnosis, specialist notes, or questions to ask" />
+              </label>
+              <label>
+                Medication note
+                <textarea value={medicationNote} onChange={(event) => setMedicationNote(event.target.value)} placeholder="Past medicine, response, side effects, or leave blank" />
+              </label>
+            </div>
+          </Panel>
+
+          <div className="setup-footer">
+            <p className="sync-message">{message}</p>
+            <button className="primary-button large-button" type="submit">
+              <Check size={18} /> Create private profile
+            </button>
+          </div>
+        </form>
+      </section>
+    </main>
   );
 }
 
@@ -1207,9 +1325,13 @@ function LogsView({ logs, onExport, onAdd }) {
           </div>
         </div>
         <div className="log-list expanded">
-          {logs.map((log) => (
-            <LogRow key={log.id} log={log} />
-          ))}
+          {logs.length === 0 ? (
+            <EmptyState icon={<FileText />} title="No saved logs yet" text="Use New log when your child is ready to record the first tic." />
+          ) : (
+            logs.map((log) => (
+              <LogRow key={log.id} log={log} />
+            ))
+          )}
         </div>
       </Panel>
     </section>
@@ -1425,13 +1547,13 @@ function AccountSyncView({
       setLogs((cloudLogs || []).map(mapCloudLog));
       setJournals((cloudJournals || []).map(mapCloudJournal));
       if (snapshot) {
-        setProfile(snapshot.profile || child.local_profile || profile);
+        setProfile({ ...defaultProfile, ...(snapshot.profile || child.local_profile || profile), setupComplete: true });
         setYgtss(snapshot.ygtss || ygtss);
         setPuts(snapshot.puts || puts);
         setMeds(snapshot.meds || meds);
         setRedFlags(snapshot.red_flags || redFlags);
       } else {
-        setProfile(child.local_profile || profile);
+        setProfile({ ...defaultProfile, ...(child.local_profile || profile), setupComplete: true });
       }
       setMessage(`Loaded ${cloudLogs?.length || 0} logs and ${cloudJournals?.length || 0} journal entries from Family Sync.`);
     } catch (error) {
@@ -1812,8 +1934,8 @@ function MiniChart({ days }) {
       {days.map((day) => (
         <div className="bar-col" key={day.label}>
           <span>
-            <i style={{ height: `${Math.max(18, (day.motor / max) * 120)}px` }} />
-            <b style={{ height: `${Math.max(10, (day.vocal / max) * 80)}px` }} />
+            <i style={{ height: day.motor > 0 ? `${Math.max(18, (day.motor / max) * 120)}px` : "0px" }} />
+            <b style={{ height: day.vocal > 0 ? `${Math.max(10, (day.vocal / max) * 80)}px` : "0px" }} />
           </span>
           <em>{day.label}</em>
         </div>
@@ -1842,11 +1964,27 @@ function RecentLogs({ logs, onViewAll }) {
         </button>
       </div>
       <div className="log-list">
-        {logs.slice(0, 3).map((log) => (
-          <LogRow key={log.id} log={log} />
-        ))}
+        {logs.length === 0 ? (
+          <EmptyState icon={<FileText />} title="No logs yet" text="The first real log will appear here after setup." />
+        ) : (
+          logs.slice(0, 3).map((log) => (
+            <LogRow key={log.id} log={log} />
+          ))
+        )}
       </div>
     </Panel>
+  );
+}
+
+function EmptyState({ icon, title, text }) {
+  return (
+    <div className="empty-state">
+      <span>{React.cloneElement(icon, { size: 20, "aria-hidden": true })}</span>
+      <div>
+        <strong>{title}</strong>
+        <p>{text}</p>
+      </div>
+    </div>
   );
 }
 
@@ -1955,9 +2093,9 @@ function buildStats(logs) {
     const vocal = dayLogs.length - motor;
     return {
       label,
-      motor: motor || Math.max(1, (index + logs.length) % 4),
-      vocal: vocal || Math.max(1, (index + 2) % 3),
-      total: dayLogs.length || Math.max(2, (index + logs.length) % 6),
+      motor,
+      vocal,
+      total: dayLogs.length,
     };
   });
 

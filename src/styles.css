@@ -721,6 +721,9 @@ button:disabled {
   background: rgba(255, 255, 255, 0.93);
   box-shadow: var(--shadow);
 }
+.setup-card {
+  width: min(940px, 100%);
+}
 .access-hero {
   display: flex;
   align-items: center;
@@ -737,6 +740,40 @@ button:disabled {
   margin: 8px 0 0;
   color: var(--muted);
   line-height: 1.45;
+}
+.setup-hero {
+  background: linear-gradient(135deg, var(--teal-soft), #fff8df 72%);
+}
+.setup-form {
+  display: grid;
+  gap: 14px;
+}
+.setup-form .panel {
+  box-shadow: none;
+}
+.setup-check {
+  margin-top: 12px;
+  display: flex;
+  min-height: 44px;
+}
+.setup-check input {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--teal);
+}
+.setup-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(8, 119, 125, 0.14);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+.setup-footer .sync-message {
+  margin: 0;
 }
 .access-grid {
   display: grid;
@@ -760,6 +797,36 @@ button:disabled {
   color: var(--muted);
   font-size: 0.88rem;
   font-weight: 780;
+}
+
+.empty-state {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border: 1px dashed rgba(8, 119, 125, 0.24);
+  border-radius: 8px;
+  color: var(--muted);
+  background: rgba(248, 252, 251, 0.8);
+}
+.empty-state > span {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  color: var(--teal-dark);
+  background: var(--teal-soft);
+}
+.empty-state strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--ink);
+}
+.empty-state p {
+  margin: 0;
+  line-height: 1.45;
 }
 
 .modal-backdrop {
@@ -879,7 +946,7 @@ button:disabled {
   }
   .child-mini-stats { grid-template-columns: 1fr; }
   .help-card { grid-template-columns: 1fr; }
-  .help-actions, .sync-actions { display: grid; }
+  .help-actions, .sync-actions, .setup-footer { display: grid; }
   .access-card { padding: 16px; }
   .access-hero { align-items: flex-start; flex-direction: column; }
   .journal-entry { grid-template-columns: 1fr; }
