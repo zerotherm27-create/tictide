@@ -172,6 +172,32 @@ h2 { margin-bottom: 0; font-size: 1.08rem; line-height: 1.2; }
 h3 { margin: 0 0 12px; font-size: 0.98rem; }
 .panel-subtitle { margin: 6px 0 0; color: var(--muted); font-size: 0.86rem; line-height: 1.4; }
 
+.pwa-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(8, 119, 125, 0.16);
+  border-radius: var(--radius);
+  color: var(--ink);
+  background: linear-gradient(135deg, rgba(223, 245, 243, 0.9), rgba(255, 243, 207, 0.72));
+  box-shadow: var(--shadow-soft);
+}
+.pwa-banner strong {
+  display: block;
+  margin-bottom: 3px;
+}
+.pwa-banner p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+.pwa-banner .primary-button {
+  flex: 0 0 auto;
+}
+
 .icon-button, .subtle-button, .secondary-button, .primary-button {
   display: inline-flex;
   align-items: center;
@@ -946,7 +972,7 @@ button:disabled {
   }
   .child-mini-stats { grid-template-columns: 1fr; }
   .help-card { grid-template-columns: 1fr; }
-  .help-actions, .sync-actions, .setup-footer { display: grid; }
+  .help-actions, .sync-actions, .setup-footer, .pwa-banner { display: grid; }
   .access-card { padding: 16px; }
   .access-hero { align-items: flex-start; flex-direction: column; }
   .journal-entry { grid-template-columns: 1fr; }

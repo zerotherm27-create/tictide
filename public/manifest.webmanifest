@@ -1,0 +1,62 @@
+{
+  "id": "/",
+  "name": "TicTide",
+  "short_name": "TicTide",
+  "description": "A private family tic and ADHD-pattern tracking companion.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#f7fbfb",
+  "theme_color": "#08777d",
+  "orientation": "portrait-primary",
+  "categories": ["health", "productivity", "education"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Log tic",
+      "short_name": "Log",
+      "description": "Open TicTide ready to log an episode.",
+      "url": "/?action=log",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Journal",
+      "short_name": "Journal",
+      "description": "Open TicTide journal.",
+      "url": "/?action=journal",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

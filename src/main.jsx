@@ -150,13 +150,69 @@ function App() {
   const [journalNote, setJournalNote] = useState("");
   const [seconds, setSeconds] = useState(272);
   const [running, setRunning] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [waitingWorker, setWaitingWorker] = useState(null);
+  const [updateReady, setUpdateReady] = useState(false);
   const isChildMode = appMode === "child";
   const isChildLocked = appMode === "child-lock";
   const needsSetup = !profile.setupComplete;
 
   useEffect(() => {
+    const standalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      window.navigator.standalone === true;
+    setIsInstalled(standalone);
+
+    function captureInstallPrompt(event) {
+      event.preventDefault();
+      setInstallPrompt(event);
+    }
+
+    function markInstalled() {
+      setInstallPrompt(null);
+      setIsInstalled(true);
+    }
+
+    window.addEventListener("beforeinstallprompt", captureInstallPrompt);
+    window.addEventListener("appinstalled", markInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", captureInstallPrompt);
+      window.removeEventListener("appinstalled", markInstalled);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!import.meta.env.PROD || !("serviceWorker" in navigator)) return;
-    navigator.serviceWorker.register("/public-sw.js").catch(() => {});
+    let refreshing = false;
+
+    function refreshOnControllerChange() {
+      if (refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    }
+
+    navigator.serviceWorker.addEventListener("controllerchange", refreshOnControllerChange);
+
+    navigator.serviceWorker.register("/public-sw.js").then((registration) => {
+      if (registration.waiting) {
+        setWaitingWorker(registration.waiting);
+        setUpdateReady(true);
+      }
+
+      registration.addEventListener("updatefound", () => {
+        const nextWorker = registration.installing;
+        if (!nextWorker) return;
+        nextWorker.addEventListener("statechange", () => {
+          if (nextWorker.state === "installed" && navigator.serviceWorker.controller) {
+            setWaitingWorker(nextWorker);
+            setUpdateReady(true);
+          }
+        });
+      });
+    }).catch(() => {});
+
+    return () => navigator.serviceWorker.removeEventListener("controllerchange", refreshOnControllerChange);
   }, []);
 
   useEffect(() => {
@@ -172,6 +228,21 @@ function App() {
       setActiveView("home");
     }
   }, [activeView, appMode]);
+
+  useEffect(() => {
+    if (needsSetup) return;
+    const params = new URLSearchParams(window.location.search);
+    const action = params.get("action");
+    if (action === "log") {
+      setActiveView("home");
+      setFormOpen(true);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+    if (action === "journal") {
+      setActiveView("journal");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [needsSetup]);
 
   const stats = useMemo(() => buildStats(logs), [logs]);
   const journalStats = useMemo(() => buildJournalStats(journals), [journals]);
@@ -254,6 +325,18 @@ function App() {
     setActiveView("home");
   }
 
+  async function installApp() {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    await installPrompt.userChoice.catch(() => undefined);
+    setInstallPrompt(null);
+  }
+
+  function activateUpdate() {
+    if (!waitingWorker) return;
+    waitingWorker.postMessage({ type: "SKIP_WAITING" });
+  }
+
   function completeSetup(setup) {
     setLogs([]);
     setJournals([]);
@@ -282,7 +365,17 @@ function App() {
   }
 
   if (needsSetup) {
-    return <SetupView profile={profile} onComplete={completeSetup} />;
+    return (
+      <SetupView
+        profile={profile}
+        installPrompt={installPrompt}
+        isInstalled={isInstalled}
+        updateReady={updateReady}
+        onInstall={installApp}
+        onUpdate={activateUpdate}
+        onComplete={completeSetup}
+      />
+    );
   }
 
   if (isChildLocked) {
@@ -348,6 +441,14 @@ function App() {
             </button>
           </div>
         </header>
+
+        <PwaPrompt
+          installPrompt={installPrompt}
+          isInstalled={isInstalled}
+          updateReady={updateReady}
+          onInstall={installApp}
+          onUpdate={activateUpdate}
+        />
 
         {activeView === "home" && (
           <HomeView
@@ -509,7 +610,7 @@ function App() {
   );
 }
 
-function SetupView({ profile, onComplete }) {
+function SetupView({ profile, installPrompt, isInstalled, updateReady, onInstall, onUpdate, onComplete }) {
   const isLegacyDemoProfile = !profile.setupComplete && profile.childName === "Kai";
   const [childName, setChildName] = useState(profile.childName && !isLegacyDemoProfile ? profile.childName : "");
   const [parentName, setParentName] = useState(profile.parentName || "");
@@ -568,6 +669,14 @@ function SetupView({ profile, onComplete }) {
             <p>Create your child’s private profile before handing over the tablet.</p>
           </div>
         </div>
+
+        <PwaPrompt
+          installPrompt={installPrompt}
+          isInstalled={isInstalled}
+          updateReady={updateReady}
+          onInstall={onInstall}
+          onUpdate={onUpdate}
+        />
 
         <form className="setup-form" onSubmit={submitSetup}>
           <Panel>
@@ -647,6 +756,36 @@ function SetupView({ profile, onComplete }) {
         </form>
       </section>
     </main>
+  );
+}
+
+function PwaPrompt({ installPrompt, isInstalled, updateReady, onInstall, onUpdate }) {
+  if (updateReady) {
+    return (
+      <div className="pwa-banner" role="status">
+        <div>
+          <strong>Update ready</strong>
+          <p>A newer TicTide version is ready to use.</p>
+        </div>
+        <button className="primary-button" type="button" onClick={onUpdate}>
+          Refresh
+        </button>
+      </div>
+    );
+  }
+
+  if (!installPrompt || isInstalled) return null;
+
+  return (
+    <div className="pwa-banner" role="status">
+      <div>
+        <strong>Install TicTide</strong>
+        <p>Add it to the tablet home screen for app-like offline access.</p>
+      </div>
+      <button className="primary-button" type="button" onClick={onInstall}>
+        <Smartphone size={17} /> Install
+      </button>
+    </div>
   );
 }
 
