@@ -368,6 +368,7 @@ function App() {
     return (
       <SetupView
         profile={profile}
+        onRestore={(data, localAccess) => restoreSetupFromCloud(data, localAccess)}
         installPrompt={installPrompt}
         isInstalled={isInstalled}
         updateReady={updateReady}
@@ -376,6 +377,25 @@ function App() {
         onComplete={completeSetup}
       />
     );
+  }
+
+  function applyCloudData(data) {
+    setLogs(data.logs);
+    setJournals(data.journals);
+    setProfile(data.profile);
+    setYgtss(data.ygtss);
+    setPuts(data.puts);
+    setMeds(data.meds);
+    setRedFlags(data.redFlags);
+  }
+
+  function restoreSetupFromCloud(data, localAccess) {
+    applyCloudData(data);
+    setAccess(localAccess);
+    setSelectedContexts([]);
+    setTicName("Custom");
+    setAppMode("child-lock");
+    setActiveView("home");
   }
 
   if (isChildLocked) {
@@ -532,6 +552,7 @@ function App() {
             setMeds={setMeds}
             redFlags={redFlags}
             setRedFlags={setRedFlags}
+            onApplyCloudData={applyCloudData}
           />
         )}
         {activeView === "help" && (
@@ -610,7 +631,7 @@ function App() {
   );
 }
 
-function SetupView({ profile, installPrompt, isInstalled, updateReady, onInstall, onUpdate, onComplete }) {
+function SetupView({ profile, onRestore, installPrompt, isInstalled, updateReady, onInstall, onUpdate, onComplete }) {
   const isLegacyDemoProfile = !profile.setupComplete && profile.childName === "Kai";
   const [childName, setChildName] = useState(profile.childName && !isLegacyDemoProfile ? profile.childName : "");
   const [parentName, setParentName] = useState(profile.parentName || "");
@@ -621,6 +642,16 @@ function SetupView({ profile, installPrompt, isInstalled, updateReady, onInstall
   const [childCode, setChildCode] = useState("");
   const [parentPin, setParentPin] = useState("");
   const [message, setMessage] = useState("Set this up before sharing the app with your child.");
+  const [restoreEmail, setRestoreEmail] = useState("");
+  const [restorePassword, setRestorePassword] = useState("");
+  const [restoreChildCode, setRestoreChildCode] = useState("");
+  const [restoreParentPin, setRestoreParentPin] = useState("");
+  const [restoreBusy, setRestoreBusy] = useState(false);
+  const [restoreMessage, setRestoreMessage] = useState(
+    isSupabaseConfigured
+      ? "Use the same parent account you used on desktop."
+      : "Family Sync is not connected on this build yet.",
+  );
 
   function cleanCode(value) {
     return value.replace(/\D/g, "").slice(0, 6);
@@ -656,6 +687,56 @@ function SetupView({ profile, installPrompt, isInstalled, updateReady, onInstall
     });
   }
 
+  async function restoreFromParentAccount(event) {
+    event.preventDefault();
+    if (!supabase) {
+      setRestoreMessage("Family Sync is not connected on this build yet.");
+      return;
+    }
+    if (restoreChildCode.length < 4) {
+      setRestoreMessage("Use at least 4 numbers for the child code on this tablet.");
+      return;
+    }
+    if (restoreParentPin.length < 4) {
+      setRestoreMessage("Use at least 4 numbers for the parent PIN on this tablet.");
+      return;
+    }
+    if (restoreChildCode === restoreParentPin) {
+      setRestoreMessage("Use different numbers for the child code and parent PIN.");
+      return;
+    }
+
+    setRestoreBusy(true);
+    setRestoreMessage("Signing in and loading Family Sync...");
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: restoreEmail.trim(),
+        password: restorePassword,
+      });
+      if (error) throw error;
+      if (!data.session?.user) {
+        setRestoreMessage("Signed in, but the account needs confirmation before it can restore data.");
+        return;
+      }
+
+      const cloudData = await loadFamilySyncData({
+        profile,
+        ygtss: defaultYgtss,
+        puts: defaultPuts,
+        meds: emptyMeds,
+        redFlags: defaultRedFlags,
+      });
+      onRestore(cloudData, {
+        childCode: restoreChildCode,
+        parentPin: restoreParentPin,
+      });
+    } catch (error) {
+      setRestoreMessage(`Restore failed: ${error.message}`);
+    } finally {
+      setRestoreBusy(false);
+    }
+  }
+
   return (
     <main className="access-screen setup-screen">
       <section className="access-card setup-card">
@@ -677,6 +758,82 @@ function SetupView({ profile, installPrompt, isInstalled, updateReady, onInstall
           onInstall={onInstall}
           onUpdate={onUpdate}
         />
+
+        <Panel className="restore-panel">
+          <div className="panel-title-row">
+            <div>
+              <h2>Already set up on another device?</h2>
+              <p className="panel-subtitle">Sign in with the parent account, then this tablet will load the child profile and saved logs.</p>
+            </div>
+            <CloudDownload className="title-wave" aria-hidden="true" />
+          </div>
+          {!isSupabaseConfigured && (
+            <div className="setup-box">
+              <Database size={20} />
+              <div>
+                <strong>Family Sync is not connected.</strong>
+                <p>Connect Supabase before restoring a desktop profile on this tablet.</p>
+              </div>
+            </div>
+          )}
+          <form className="account-form restore-form" onSubmit={restoreFromParentAccount}>
+            <div className="form-grid compact">
+              <label>
+                Parent email
+                <input
+                  value={restoreEmail}
+                  onChange={(event) => setRestoreEmail(event.target.value)}
+                  type="email"
+                  autoComplete="email"
+                  disabled={!isSupabaseConfigured || restoreBusy}
+                  required
+                />
+              </label>
+              <label>
+                Parent password
+                <input
+                  value={restorePassword}
+                  onChange={(event) => setRestorePassword(event.target.value)}
+                  type="password"
+                  autoComplete="current-password"
+                  disabled={!isSupabaseConfigured || restoreBusy}
+                  minLength={8}
+                  required
+                />
+              </label>
+              <label>
+                Child code for this tablet
+                <input
+                  value={restoreChildCode}
+                  onChange={(event) => setRestoreChildCode(cleanCode(event.target.value))}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="4 to 6 numbers"
+                  disabled={!isSupabaseConfigured || restoreBusy}
+                  required
+                />
+              </label>
+              <label>
+                Parent PIN for this tablet
+                <input
+                  value={restoreParentPin}
+                  onChange={(event) => setRestoreParentPin(cleanCode(event.target.value))}
+                  inputMode="numeric"
+                  type="password"
+                  placeholder="4 to 6 numbers"
+                  disabled={!isSupabaseConfigured || restoreBusy}
+                  required
+                />
+              </label>
+            </div>
+            <div className="restore-actions">
+              <p className="sync-message">{restoreMessage}</p>
+              <button className="primary-button" type="submit" disabled={!isSupabaseConfigured || restoreBusy}>
+                <CloudDownload size={17} /> {restoreBusy ? "Restoring..." : "Restore on this tablet"}
+              </button>
+            </div>
+          </form>
+        </Panel>
 
         <form className="setup-form" onSubmit={submitSetup}>
           <Panel>
@@ -1492,6 +1649,7 @@ function AccountSyncView({
   setMeds,
   redFlags,
   setRedFlags,
+  onApplyCloudData,
 }) {
   const [session, setSession] = useState(null);
   const [email, setEmail] = useState("");
@@ -1647,54 +1805,9 @@ function AccountSyncView({
     setBusy(true);
     setMessage("Loading Family Sync data...");
     try {
-      const { data: family, error: familyError } = await supabase.from("families").select("*").maybeSingle();
-      if (familyError) throw familyError;
-      if (!family) {
-        setMessage("No cloud family data found yet. Sync from the tablet first.");
-        setBusy(false);
-        return;
-      }
-      const { data: child, error: childError } = await supabase.from("children").select("*").eq("family_id", family.id).maybeSingle();
-      if (childError) throw childError;
-      if (!child) {
-        setMessage("No child profile found yet. Sync from the tablet first.");
-        setBusy(false);
-        return;
-      }
-
-      const { data: cloudLogs, error: logsError } = await supabase
-        .from("tic_logs")
-        .select("*")
-        .eq("child_id", child.id)
-        .order("created_at", { ascending: false });
-      if (logsError) throw logsError;
-
-      const { data: cloudJournals, error: journalsError } = await supabase
-        .from("journal_entries")
-        .select("*")
-        .eq("child_id", child.id)
-        .order("created_at", { ascending: false });
-      if (journalsError) throw journalsError;
-
-      const { data: snapshot, error: snapshotError } = await supabase
-        .from("care_snapshots")
-        .select("*")
-        .eq("child_id", child.id)
-        .maybeSingle();
-      if (snapshotError) throw snapshotError;
-
-      setLogs((cloudLogs || []).map(mapCloudLog));
-      setJournals((cloudJournals || []).map(mapCloudJournal));
-      if (snapshot) {
-        setProfile({ ...defaultProfile, ...(snapshot.profile || child.local_profile || profile), setupComplete: true });
-        setYgtss(snapshot.ygtss || ygtss);
-        setPuts(snapshot.puts || puts);
-        setMeds(snapshot.meds || meds);
-        setRedFlags(snapshot.red_flags || redFlags);
-      } else {
-        setProfile({ ...defaultProfile, ...(child.local_profile || profile), setupComplete: true });
-      }
-      setMessage(`Loaded ${cloudLogs?.length || 0} logs and ${cloudJournals?.length || 0} journal entries from Family Sync.`);
+      const data = await loadFamilySyncData({ profile, ygtss, puts, meds, redFlags });
+      onApplyCloudData(data);
+      setMessage(`Loaded ${data.logs.length} logs and ${data.journals.length} journal entries from Family Sync.`);
     } catch (error) {
       setMessage(`Load failed: ${error.message}`);
     } finally {
@@ -2166,6 +2279,47 @@ function mapCloudLog(row) {
   };
 }
 
+async function loadFamilySyncData({ profile, ygtss, puts, meds, redFlags }) {
+  const { data: family, error: familyError } = await supabase.from("families").select("*").maybeSingle();
+  if (familyError) throw familyError;
+  if (!family) throw new Error("No cloud family data found yet. Sync from the desktop first.");
+
+  const { data: child, error: childError } = await supabase.from("children").select("*").eq("family_id", family.id).maybeSingle();
+  if (childError) throw childError;
+  if (!child) throw new Error("No child profile found yet. Sync from the desktop first.");
+
+  const { data: cloudLogs, error: logsError } = await supabase
+    .from("tic_logs")
+    .select("*")
+    .eq("child_id", child.id)
+    .order("created_at", { ascending: false });
+  if (logsError) throw logsError;
+
+  const { data: cloudJournals, error: journalsError } = await supabase
+    .from("journal_entries")
+    .select("*")
+    .eq("child_id", child.id)
+    .order("created_at", { ascending: false });
+  if (journalsError) throw journalsError;
+
+  const { data: snapshot, error: snapshotError } = await supabase
+    .from("care_snapshots")
+    .select("*")
+    .eq("child_id", child.id)
+    .maybeSingle();
+  if (snapshotError) throw snapshotError;
+
+  return {
+    logs: (cloudLogs || []).map(mapCloudLog),
+    journals: (cloudJournals || []).map(mapCloudJournal),
+    profile: { ...defaultProfile, ...(snapshot?.profile || child.local_profile || profile), setupComplete: true },
+    ygtss: snapshot?.ygtss || ygtss,
+    puts: snapshot?.puts || puts,
+    meds: snapshot?.meds || meds,
+    redFlags: snapshot?.red_flags || redFlags,
+  };
+}
+
 function mapCloudJournal(row) {
   return {
     id: row.local_id,
@@ -2200,163 +2354,4 @@ function useStoredState(key, fallback) {
 function scoreYgtss(ygtss) {
   const motor = ygtssDimensions.reduce((sum, key) => sum + Number(ygtss.motor[key] || 0), 0);
   const vocal = ygtssDimensions.reduce((sum, key) => sum + Number(ygtss.vocal[key] || 0), 0);
-  const total = motor + vocal;
-  const global = total + Number(ygtss.impairment || 0);
-  return { motor, vocal, total, global };
-}
-
-function scorePuts(puts) {
-  const total = Object.values(puts).reduce((sum, value) => sum + Number(value || 0), 0);
-  return { total };
-}
-
-function buildStats(logs) {
-  const avgUrge =
-    logs.length === 0 ? "0.0" : (logs.reduce((sum, log) => sum + Number(log.urge), 0) / logs.length).toFixed(1);
-  const contexts = logs.flatMap((log) => log.contexts);
-  const commonContext =
-    contexts.length === 0
-      ? "None"
-      : contexts.reduce(
-          (best, context) => {
-            const count = contexts.filter((item) => item === context).length;
-            return count > best.count ? { name: context, count } : best;
-          },
-          { name: contexts[0], count: 0 },
-        ).name;
-
-  const labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const days = labels.map((label, index) => {
-    const dayLogs = logs.filter((log) => new Date(log.createdAt).getDay() === ((index + 1) % 7));
-    const motor = dayLogs.filter((log) => log.ticType === "Motor").length;
-    const vocal = dayLogs.length - motor;
-    return {
-      label,
-      motor,
-      vocal,
-      total: dayLogs.length,
-    };
-  });
-
-  return { avgUrge, commonContext, days };
-}
-
-function buildJournalStats(journals) {
-  const avgPressure =
-    journals.length === 0
-      ? "0.0"
-      : (journals.reduce((sum, entry) => sum + Number(entry.ticPressure || 0), 0) / journals.length).toFixed(1);
-  const moods = journals.map((entry) => entry.mood).filter(Boolean);
-  const commonMood =
-    moods.length === 0
-      ? "None"
-      : moods.reduce(
-          (best, mood) => {
-            const count = moods.filter((item) => item === mood).length;
-            return count > best.count ? { name: mood, count } : best;
-          },
-          { name: moods[0], count: 0 },
-        ).name;
-  return { avgPressure, commonMood };
-}
-
-function buildDoctorReport({ logs, journals, stats, journalStats, ygtssScore, putsScore, meds, profile, redFlags }) {
-  const activeFlags = Object.entries(redFlags)
-    .filter(([, value]) => value)
-    .map(([key]) => key)
-    .join(", ") || "None marked";
-  const latestLogs = logs
-    .slice(0, 5)
-    .map((log) => `- ${formatLogTime(log.createdAt)}: ${log.ticType} ${log.ticName}, urge ${log.urge}/10, intensity ${log.intensity}/10, contexts ${log.contexts.join("; ")}, pain ${log.pain || "None"}, note: ${log.note}`)
-    .join("\n");
-  const latestJournals = journals
-    .slice(0, 5)
-    .map((entry) => `- ${formatLogTime(entry.createdAt)}: mood ${entry.mood}, urge ${entry.urgeBefore}/10, pressure ${entry.ticPressure}/10, body ${entry.bodyFeeling}, helped: ${entry.helped}, trigger: ${entry.trigger}, note: ${entry.note}`)
-    .join("\n");
-  const medLines = meds
-    .map((med) => `- ${med.name || "Medication"} ${med.dose ? `(${med.dose})` : ""}; dates: ${med.dates || "not set"}; response: ${med.response || "not set"}`)
-    .join("\n");
-
-  return [
-    "TicTide doctor visit summary",
-    `Generated: ${new Date().toLocaleString()}`,
-    "",
-    `Child: ${profile.childName}`,
-    `ADHD diagnosis: ${profile.adhdDiagnosed ? "Yes" : "Not marked"}`,
-    `Tic duration: ${profile.ticDuration}`,
-    `Neuro-ped status: ${profile.neuroPedStatus}`,
-    `Medication note: ${profile.medicationNote}`,
-    "",
-    "Current tracking summary",
-    `- Total logs: ${logs.length}`,
-    `- Average urge: ${stats.avgUrge}/10`,
-    `- Most common context: ${stats.commonContext}`,
-    `- Journal entries: ${journals.length}`,
-    `- Journal common mood: ${journalStats.commonMood}`,
-    `- Journal average tic pressure: ${journalStats.avgPressure}/10`,
-    `- YGTSS-style parent observation: motor ${ygtssScore.motor}/25, vocal ${ygtssScore.vocal}/25, tic severity ${ygtssScore.total}/50, global ${ygtssScore.global}/100`,
-    `- PUTS-style urge tracker: ${putsScore.total}/36`,
-    `- Red flags marked: ${activeFlags}`,
-    "",
-    "Medication history",
-    medLines,
-    "",
-    "Recent tic logs",
-    latestLogs,
-    "",
-    "Recent journal entries",
-    latestJournals || "No journal entries yet",
-    "",
-    "Questions for clinician",
-    "- Does this history fit Tourette syndrome, persistent tic disorder, or another tic-related diagnosis?",
-    "- Should we formally assess tic severity using clinician YGTSS?",
-    "- Would CBIT or habit-reversal therapy be appropriate now?",
-    "- How should ADHD treatment and tic treatment be coordinated?",
-    "- What should we monitor if medication is used again?",
-  ].join("\n");
-}
-
-function formatDate(value) {
-  return new Intl.DateTimeFormat("en", {
-    weekday: "long",
-    month: "short",
-    day: "numeric",
-  }).format(value);
-}
-
-function formatLogTime(value) {
-  const date = new Date(value);
-  const sameDay = new Date().toDateString() === date.toDateString();
-  return `${sameDay ? "Today" : "Earlier"}, ${date.toLocaleTimeString([], {
-    hour: "numeric",
-    minute: "2-digit",
-  })}`;
-}
-
-function viewTitle(view) {
-  return {
-    logs: "Logs",
-    journal: "Journal",
-    trends: "Trends",
-    tools: "Care Tools",
-    account: "Account & Sync",
-    help: "Help Guide",
-    settings: "Settings",
-  }[view];
-}
-
-function downloadFile(filename, parts, type) {
-  const blob = new Blob(parts, { type });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
-function dateStamp() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-createRoot(document.getElementById("root")).render(<App />);
+  const total = motor + vocal
