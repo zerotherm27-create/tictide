@@ -20,6 +20,63 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      (function () {
+        var booted = false;
+        window.__tictideBooted = function () { booted = true; };
+
+        function resetApp() {
+          var done = 0, total = 2;
+          function maybeReload() { if (++done >= total) location.reload(true); }
+          if ("serviceWorker" in navigator) {
+            navigator.serviceWorker.getRegistrations()
+              .then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); })
+              .then(maybeReload).catch(maybeReload);
+          } else { maybeReload(); }
+          if (window.caches && caches.keys) {
+            caches.keys().then(function (keys) { return Promise.all(keys.map(function (k) { return caches.delete(k); })); })
+              .then(maybeReload).catch(maybeReload);
+          } else { maybeReload(); }
+        }
+        window.__tictideReset = resetApp;
+
+        function showPanel(title, detail) {
+          var root = document.getElementById("root");
+          if (!root) return;
+          root.innerHTML =
+            '<div style="max-width:480px;margin:48px auto;padding:24px;font-family:Inter,system-ui,sans-serif;color:#0f2e30">' +
+            '<h1 style="font-size:20px;font-weight:800;color:#065f62;margin:0 0 8px">TicTide could not start</h1>' +
+            '<p style="font-size:14px;color:#4a6a6c;margin:0 0 16px">Tap reset to clear the cached app and reload. Your saved data stays on this device.</p>' +
+            '<button id="tictide-reset-btn" style="background:#e96f5b;color:#fff;border:none;border-radius:10px;padding:12px 18px;font-size:15px;font-weight:700;cursor:pointer">Reset and reload</button>' +
+            (detail ? '<pre style="margin-top:16px;padding:12px;background:#f3f5f5;border-radius:8px;font-size:11px;white-space:pre-wrap;word-break:break-word;color:#7a2b1f">' + String(detail).replace(/[<>&]/g, function (c) { return { "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]; }) + "</pre>" : "") +
+            "</div>";
+          var btn = document.getElementById("tictide-reset-btn");
+          if (btn) btn.addEventListener("click", resetApp);
+        }
+        window.__tictideShowPanel = showPanel;
+
+        window.addEventListener("error", function (e) {
+          if (booted) return;
+          var msg = (e && e.error && e.error.stack) || (e && e.message) || "Unknown startup error";
+          if (e && e.target && (e.target.tagName === "SCRIPT" || e.target.tagName === "LINK")) {
+            msg = "Failed to load " + (e.target.src || e.target.href);
+          }
+          showPanel("startup error", msg);
+        }, true);
+
+        window.addEventListener("unhandledrejection", function (e) {
+          if (booted) return;
+          showPanel("startup error", (e && e.reason && e.reason.stack) || (e && e.reason) || "Unhandled promise rejection");
+        });
+
+        setTimeout(function () {
+          var root = document.getElementById("root");
+          if (!booted && root && root.childElementCount === 0) {
+            showPanel("watchdog", "The app did not render within 6 seconds.");
+          }
+        }, 6000);
+      })();
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

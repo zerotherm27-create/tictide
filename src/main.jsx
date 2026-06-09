@@ -176,6 +176,11 @@ function App() {
   const [recoveryMessage, setRecoveryMessage] = useState("Choose a new password for the parent account.");
   const [ygtssCheckinOpen, setYgtssCheckinOpen] = useState(false);
   useEffect(() => {
+    if (typeof window !== "undefined" && typeof window.__tictideBooted === "function") {
+      window.__tictideBooted();
+    }
+  }, []);
+  useEffect(() => {
     if (!Array.isArray(ygtss)) {
       const weekOf = getMondayISO(new Date());
       setYgtss([{ weekOf, completedAt: new Date().toISOString(), ...ygtss }]);
