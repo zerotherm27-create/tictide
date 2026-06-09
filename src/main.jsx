@@ -154,6 +154,11 @@ function App() {
   const [isInstalled, setIsInstalled] = useState(false);
   const [waitingWorker, setWaitingWorker] = useState(null);
   const [updateReady, setUpdateReady] = useState(false);
+  const [recoveryOpen, setRecoveryOpen] = useState(false);
+  const [recoveryPassword, setRecoveryPassword] = useState("");
+  const [recoveryConfirm, setRecoveryConfirm] = useState("");
+  const [recoveryBusy, setRecoveryBusy] = useState(false);
+  const [recoveryMessage, setRecoveryMessage] = useState("Choose a new password for the parent account.");
   const isChildMode = appMode === "child";
   const isChildLocked = appMode === "child-lock";
   const needsSetup = !profile.setupComplete;
@@ -222,6 +227,19 @@ function App() {
     }, 1000);
     return () => window.clearInterval(timer);
   }, [running]);
+
+  useEffect(() => {
+    if (!supabase) return;
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setRecoveryOpen(true);
+        setRecoveryPassword("");
+        setRecoveryConfirm("");
+        setRecoveryMessage("Choose a new password for the parent account.");
+      }
+    });
+    return () => data.subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (appMode !== "parent" && !childViews.has(activeView)) {
@@ -366,16 +384,19 @@ function App() {
 
   if (needsSetup) {
     return (
-      <SetupView
-        profile={profile}
-        onRestore={(data, localAccess) => restoreSetupFromCloud(data, localAccess)}
-        installPrompt={installPrompt}
-        isInstalled={isInstalled}
-        updateReady={updateReady}
-        onInstall={installApp}
-        onUpdate={activateUpdate}
-        onComplete={completeSetup}
-      />
+      <>
+        <SetupView
+          profile={profile}
+          onRestore={(data, localAccess) => restoreSetupFromCloud(data, localAccess)}
+          installPrompt={installPrompt}
+          isInstalled={isInstalled}
+          updateReady={updateReady}
+          onInstall={installApp}
+          onUpdate={activateUpdate}
+          onComplete={completeSetup}
+        />
+        {recoveryModal}
+      </>
     );
   }
 
@@ -398,14 +419,57 @@ function App() {
     setActiveView("home");
   }
 
+  async function finishPasswordRecovery(event) {
+    event.preventDefault();
+    if (!supabase) return;
+    if (recoveryPassword.length < 8) {
+      setRecoveryMessage("Use at least 8 characters for the new password.");
+      return;
+    }
+    if (recoveryPassword !== recoveryConfirm) {
+      setRecoveryMessage("The new password and confirmation do not match.");
+      return;
+    }
+
+    setRecoveryBusy(true);
+    setRecoveryMessage("Saving the new password...");
+    const { error } = await supabase.auth.updateUser({ password: recoveryPassword });
+    setRecoveryBusy(false);
+    if (error) {
+      setRecoveryMessage(`Could not update password: ${error.message}`);
+      return;
+    }
+
+    setRecoveryOpen(false);
+    setRecoveryPassword("");
+    setRecoveryConfirm("");
+    setRecoveryMessage("Password updated.");
+  }
+
+  const recoveryModal = recoveryOpen ? (
+    <PasswordRecoveryModal
+      password={recoveryPassword}
+      confirmPassword={recoveryConfirm}
+      busy={recoveryBusy}
+      message={recoveryMessage}
+      onPasswordChange={setRecoveryPassword}
+      onConfirmChange={setRecoveryConfirm}
+      onSubmit={finishPasswordRecovery}
+      onClose={() => setRecoveryOpen(false)}
+    />
+  ) : null;
+
   if (isChildLocked) {
     return (
-      <ChildUnlockView
-        profile={profile}
-        access={access}
-        onUnlockChild={() => setAppMode("child")}
-        onUnlockParent={() => setAppMode("parent")}
-      />
+      <>
+        <ChildUnlockView
+          profile={profile}
+          access={access}
+          onUnlockChild={() => setAppMode("child")}
+          onUnlockParent={() => setAppMode("parent")}
+        />
+        {recoveryModal}
+      </>
     );
   }
 
@@ -627,6 +691,7 @@ function App() {
           </form>
         </div>
       )}
+      {recoveryModal}
     </div>
   );
 }
@@ -737,6 +802,18 @@ function SetupView({ profile, onRestore, installPrompt, isInstalled, updateReady
     }
   }
 
+  async function sendRestoreReset() {
+    const email = restoreEmail.trim();
+    if (!email) {
+      setRestoreMessage("Enter the parent email first, then use Forgot password.");
+      return;
+    }
+    setRestoreBusy(true);
+    const result = await requestPasswordReset(email);
+    setRestoreBusy(false);
+    setRestoreMessage(result);
+  }
+
   return (
     <main className="access-screen setup-screen">
       <section className="access-card setup-card">
@@ -832,9 +909,14 @@ function SetupView({ profile, onRestore, installPrompt, isInstalled, updateReady
             </div>
             <div className="restore-actions">
               <p className="sync-message">{restoreMessage}</p>
-              <button className="primary-button" type="submit" disabled={!isSupabaseConfigured || restoreBusy}>
-                <CloudDownload size={17} /> {restoreBusy ? "Restoring..." : "Restore on this tablet"}
-              </button>
+              <div className="button-cluster">
+                <button className="subtle-button" type="button" onClick={sendRestoreReset} disabled={!isSupabaseConfigured || restoreBusy}>
+                  Forgot password
+                </button>
+                <button className="primary-button" type="submit" disabled={!isSupabaseConfigured || restoreBusy}>
+                  <CloudDownload size={17} /> {restoreBusy ? "Restoring..." : "Restore on this tablet"}
+                </button>
+              </div>
             </div>
           </form>
         </Panel>
@@ -946,6 +1028,36 @@ function PwaPrompt({ installPrompt, isInstalled, updateReady, onInstall, onUpdat
       <button className="primary-button" type="button" onClick={onInstall}>
         <Smartphone size={17} /> Install
       </button>
+    </div>
+  );
+}
+
+function PasswordRecoveryModal({ password, confirmPassword, busy, message, onPasswordChange, onConfirmChange, onSubmit, onClose }) {
+  return (
+    <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
+      <form className="log-form recovery-form" onSubmit={onSubmit} onMouseDown={(event) => event.stopPropagation()} aria-label="Reset parent password">
+        <div className="panel-title-row">
+          <div>
+            <h2>Reset parent password</h2>
+            <p className="panel-subtitle">This link came from the reset email. Choose a new password to finish recovery.</p>
+          </div>
+          <button className="subtle-button" type="button" onClick={onClose}>
+            Close
+          </button>
+        </div>
+        <label>
+          New password
+          <input value={password} onChange={(event) => onPasswordChange(event.target.value)} type="password" autoComplete="new-password" minLength={8} required />
+        </label>
+        <label>
+          Confirm new password
+          <input value={confirmPassword} onChange={(event) => onConfirmChange(event.target.value)} type="password" autoComplete="new-password" minLength={8} required />
+        </label>
+        <p className="sync-message">{message}</p>
+        <button className="primary-button" type="submit" disabled={busy}>
+          <Check size={17} /> {busy ? "Saving..." : "Save new password"}
+        </button>
+      </form>
     </div>
   );
 }
@@ -1708,6 +1820,18 @@ function AccountSyncView({
     setMessage("Signed out.");
   }
 
+  async function handleForgotPassword() {
+    const targetEmail = email.trim();
+    if (!targetEmail) {
+      setMessage("Enter the parent email first, then use Forgot password.");
+      return;
+    }
+    setBusy(true);
+    const result = await requestPasswordReset(targetEmail);
+    setBusy(false);
+    setMessage(result);
+  }
+
   async function ensureFamilyAndChild(userId) {
     const parentName = profile.parentName || "";
     const { data: family, error: familyError } = await supabase
@@ -1852,9 +1976,16 @@ function AccountSyncView({
                 Password
                 <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete={mode === "Create" ? "new-password" : "current-password"} required minLength={8} />
               </label>
-              <button className="primary-button" type="submit" disabled={busy}>
-                <KeyRound size={17} /> {mode === "Create" ? "Create parent account" : "Sign in"}
-              </button>
+              <div className="button-cluster">
+                {mode === "Sign in" && (
+                  <button className="subtle-button" type="button" onClick={handleForgotPassword} disabled={busy}>
+                    Forgot password
+                  </button>
+                )}
+                <button className="primary-button" type="submit" disabled={busy}>
+                  <KeyRound size={17} /> {mode === "Create" ? "Create parent account" : "Sign in"}
+                </button>
+              </div>
             </form>
           )}
 
@@ -2187,15 +2318,19 @@ function MiniChart({ days }) {
   const max = Math.max(...days.map((day) => day.total), 1);
   return (
     <div className="mini-chart" aria-label="Weekly tic log chart">
-      {days.map((day) => (
-        <div className="bar-col" key={day.label}>
-          <span>
-            <i style={{ height: day.motor > 0 ? `${Math.max(18, (day.motor / max) * 120)}px` : "0px" }} />
-            <b style={{ height: day.vocal > 0 ? `${Math.max(10, (day.vocal / max) * 80)}px` : "0px" }} />
-          </span>
-          <em>{day.label}</em>
-        </div>
-      ))}
+      {days.map((day) => {
+        const motorHeight = day.motor > 0 ? `${Math.max(18, (day.motor / max) * 120)}px` : "0px";
+        const vocalHeight = day.vocal > 0 ? `${Math.max(10, (day.vocal / max) * 80)}px` : "0px";
+        return (
+          <div className="bar-col" key={day.label}>
+            <span>
+              <i style={{ height: motorHeight }} />
+              <b style={{ height: vocalHeight }} />
+            </span>
+            <em>{day.label}</em>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -2361,6 +2496,16 @@ function friendlyAuthError(error, context = "sign-in") {
   }
 
   return `${context === "restore" ? "Restore" : "Account"} failed: ${message}`;
+}
+
+async function requestPasswordReset(email) {
+  if (!supabase) return "Family Sync is not connected on this build yet.";
+  const redirectTo = `${window.location.origin}${window.location.pathname}`;
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+  if (error) {
+    return `Could not send reset email: ${error.message}`;
+  }
+  return "Password reset email sent. Open the email on this device, then choose a new password when TicTide reopens.";
 }
 
 function useStoredState(key, fallback) {
