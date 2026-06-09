@@ -436,6 +436,19 @@ function App() {
     setYgtssCheckinOpen(false);
   }
 
+  const recoveryModal = recoveryOpen ? (
+    <PasswordRecoveryModal
+      password={recoveryPassword}
+      confirmPassword={recoveryConfirm}
+      busy={recoveryBusy}
+      message={recoveryMessage}
+      onPasswordChange={setRecoveryPassword}
+      onConfirmChange={setRecoveryConfirm}
+      onSubmit={finishPasswordRecovery}
+      onClose={() => setRecoveryOpen(false)}
+    />
+  ) : null;
+
   if (needsSetup) {
     return (
       <>
@@ -499,19 +512,6 @@ function App() {
     setRecoveryConfirm("");
     setRecoveryMessage("Password updated.");
   }
-
-  const recoveryModal = recoveryOpen ? (
-    <PasswordRecoveryModal
-      password={recoveryPassword}
-      confirmPassword={recoveryConfirm}
-      busy={recoveryBusy}
-      message={recoveryMessage}
-      onPasswordChange={setRecoveryPassword}
-      onConfirmChange={setRecoveryConfirm}
-      onSubmit={finishPasswordRecovery}
-      onClose={() => setRecoveryOpen(false)}
-    />
-  ) : null;
 
   if (isChildLocked) {
     return (
