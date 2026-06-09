@@ -266,6 +266,7 @@ function App() {
   const journalStats = useMemo(() => buildJournalStats(journals), [journals]);
   const ygtssScore = useMemo(() => scoreYgtss(ygtss), [ygtss]);
   const putsScore = useMemo(() => scorePuts(puts), [puts]);
+  const breathingGuide = getBreathingGuide(seconds);
   const report = useMemo(
     () => buildDoctorReport({ logs, journals, stats, journalStats, ygtss, ygtssScore, putsScore, meds, profile, redFlags }),
     [logs, journals, stats, journalStats, ygtss, ygtssScore, putsScore, meds, profile, redFlags],
@@ -549,6 +550,7 @@ function App() {
             remainingSeconds={remainingSeconds}
             running={running}
             setRunning={setRunning}
+            breathingGuide={breathingGuide}
             onAdd={() => setFormOpen(true)}
             onLogs={() => setActiveView("logs")}
             onJournal={() => navigate("journal")}
@@ -1193,15 +1195,15 @@ function ChildHomeView(props) {
           </div>
           <div className="child-calm-layout">
             <div className="breathing-ring child-ring" aria-label="Breathing timer">
-              <span>Breathe in</span>
+              <span>{props.breathingGuide.label}</span>
               <strong>
-                {props.minutes}:{props.remainingSeconds}
+                {props.breathingGuide.beat}
               </strong>
-              <small>4-4-6</small>
+              <small>{props.breathingGuide.prompt}</small>
             </div>
             <div className="child-calm-actions">
               <button className="primary-button large-button" type="button" onClick={() => props.setRunning((value) => !value)}>
-                <Waves size={19} /> {props.running ? "Pause" : "Start breathing"}
+                <Waves size={19} /> {props.running ? "Pause breathing" : "Start 4-4-6 breathing"}
               </button>
               <button className="secondary-button large-button" type="button" onClick={props.onAdd}>
                 <Plus size={19} /> Save a tic
@@ -1229,6 +1231,7 @@ function ChildHomeView(props) {
             <p><Check size={18} /> Short notes are enough.</p>
             <p><Check size={18} /> Tell a parent if it hurts or scares you.</p>
           </div>
+          <CbitSupportPanel isChildMode />
           <div className="child-mini-stats">
             <SmallStat label="Saved today" value={props.logs.length} note="Tic logs" />
             <SmallStat label="Mood note" value={props.journalStats.commonMood} note={`${props.journals.length} journal`} />
@@ -1270,13 +1273,17 @@ function ParentHomeView(props) {
           </div>
           <div className="calm-layout">
             <div className="breathing-ring" aria-label="Breathing timer">
-              <span>Breathe in</span>
+              <span>{props.breathingGuide.label}</span>
               <strong>
-                {props.minutes}:{props.remainingSeconds}
+                {props.breathingGuide.beat}
               </strong>
-              <small>4-4-6 breathing</small>
+              <small>{props.breathingGuide.prompt}</small>
             </div>
             <div className="calm-controls">
+              <div className="breath-instructions">
+                <strong>4-4-6 coach</strong>
+                <p>Follow the prompt: inhale for 4, hold for 4, then exhale slowly for 6.</p>
+              </div>
               <MetricDots label="Urge level" value={props.urge} total={10} />
               <label className="range-label">
                 <span>Intensity</span>
@@ -1284,11 +1291,12 @@ function ParentHomeView(props) {
                 <em>Mild to severe</em>
               </label>
               <button className="primary-button" type="button" onClick={() => props.setRunning((value) => !value)}>
-                {props.running ? "Pause timer" : "Start calm timer"}
+                {props.running ? "Pause breathing" : "Start 4-4-6 coach"}
               </button>
             </div>
           </div>
           <ContextChips selected={props.selectedContexts} onToggle={props.toggleContext} />
+          <CbitSupportPanel />
         </Panel>
 
         <Panel>
@@ -2068,7 +2076,7 @@ function HelpView({ isChildMode, onJournal, onTools, onLogs }) {
     {
       icon: <Waves />,
       title: "3. Use Calm Mode during an episode",
-      text: "The breathing timer can help him ride out stress or an urge wave. It is support, not a command to suppress tics.",
+      text: "The 4-4-6 coach guides inhale, hold, and exhale so he can ride out stress or an urge wave. It is support, not a command to suppress tics.",
     },
     {
       icon: <BarChart3 />,
@@ -2112,6 +2120,7 @@ function HelpView({ isChildMode, onJournal, onTools, onLogs }) {
               <HelpCard key={card.title} {...card} />
             ))}
           </div>
+          <CbitSupportPanel isChildMode={isChildMode} />
         </Panel>
 
         <Panel className="help-benefit-panel">
@@ -2140,6 +2149,41 @@ function HelpView({ isChildMode, onJournal, onTools, onLogs }) {
         </Panel>
       </div>
     </section>
+  );
+}
+
+function CbitSupportPanel({ isChildMode = false }) {
+  const items = isChildMode
+    ? [
+        "Notice the urge and where it starts in your body.",
+        "Use the gentle body move your therapist or parent practiced with you, if you have one.",
+        "Take one quiet breath cycle before deciding what to do next.",
+        "After the wave passes, tell a parent what helped.",
+      ]
+    : [
+        "Notice the urge, body location, and early warning signs.",
+        "If a clinician has taught a competing response, prompt that exact response gently. CBIT responses are tic-specific.",
+        "Lower stressors you can change right now: noise, screen overload, rushing, or audience pressure.",
+        "Praise effort and calm recovery, not perfect suppression. Log triggers and what helped after the episode.",
+      ];
+
+  return (
+    <div className="cbit-panel">
+      <div className="panel-title-row">
+        <div>
+          <h3>CBIT support tools</h3>
+          <p className="panel-subtitle">These are support steps inspired by CBIT. Full CBIT works best with a trained therapist and a tic-specific plan.</p>
+        </div>
+        <Brain className="title-wave" />
+      </div>
+      <div className="check-list">
+        {items.map((item) => (
+          <p key={item}>
+            <Check size={18} /> {item}
+          </p>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -2496,6 +2540,33 @@ function friendlyAuthError(error, context = "sign-in") {
   }
 
   return `${context === "restore" ? "Restore" : "Account"} failed: ${message}`;
+}
+
+function getBreathingGuide(seconds) {
+  const cycle = 14;
+  const elapsed = (272 - seconds + 272 * 10) % cycle;
+
+  if (elapsed < 4) {
+    return {
+      label: "Inhale",
+      beat: 4 - elapsed,
+      prompt: "breathe in through your nose",
+    };
+  }
+
+  if (elapsed < 8) {
+    return {
+      label: "Hold",
+      beat: 8 - elapsed,
+      prompt: "keep your shoulders soft",
+    };
+  }
+
+  return {
+    label: "Exhale",
+    beat: 14 - elapsed,
+    prompt: "breathe out slowly",
+  };
 }
 
 async function requestPasswordReset(email) {

@@ -343,6 +343,15 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   margin-top: 2px;
   color: var(--green);
 }
+.cbit-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid rgba(13, 138, 143, 0.12);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
 .child-mini-stats {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -408,6 +417,22 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .breathing-ring span, .breathing-ring small { color: var(--muted); font-size: 0.82rem; font-weight: 700; }
 .breathing-ring strong { margin: 6px 0; font-size: 2.3rem; letter-spacing: 0; }
 .calm-controls, .view-stack, .insight-list, .settings-list, .check-list, .med-list { display: grid; gap: 14px; }
+.breath-instructions {
+  padding: 12px;
+  border: 1px solid rgba(13, 138, 143, 0.12);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+.breath-instructions strong {
+  display: block;
+  margin-bottom: 4px;
+}
+.breath-instructions p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
 .metric-dots p, .context-block p, .range-label span {
   margin: 0 0 8px;
   color: var(--muted);
