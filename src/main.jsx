@@ -2198,18 +2198,7 @@ function CareToolsView({ profile, setProfile, ygtss, setYgtss, ygtssScore, puts,
         <ClinicalProfile profile={profile} setProfile={setProfile} />
         <CriteriaPanel />
       </div>
-      <YgtssPanel
-        ygtss={Array.isArray(ygtss) && ygtss.length > 0 ? ygtss[0] : emptyYgtssSnapshot}
-        setYgtss={(updater) =>
-          setYgtss((prev) => {
-            const arr = Array.isArray(prev) ? prev : [];
-            const current = arr[0] ?? { ...emptyYgtssSnapshot, weekOf: getMondayISO(new Date()), completedAt: new Date().toISOString() };
-            const updated = typeof updater === "function" ? updater(current) : updater;
-            return [updated, ...arr.slice(1)];
-          })
-        }
-        score={ygtssScore}
-      />
+      <YgtssHistoryPanel ygtss={ygtss} />
       <PutsPanel puts={puts} setPuts={setPuts} score={putsScore} />
       <div className="tools-grid">
         <MedicationPanel meds={meds} setMeds={setMeds} />
@@ -2326,6 +2315,93 @@ function YgtssPanel({ ygtss, setYgtss, score }) {
           onChange={(event) => setYgtss((current) => ({ ...current, impairment: Number(event.target.value) }))}
         />
       </label>
+    </Panel>
+  );
+}
+
+const IMPAIRMENT_LABELS = ["None", "Minimal", "Mild", "Moderate", "Severe", "Extreme"];
+
+function ygtssImpairmentLabel(value) {
+  return IMPAIRMENT_LABELS[Math.round(Number(value) / 10)] ?? "—";
+}
+
+function fmtWeekRange(weekOf) {
+  const monday = new Date(weekOf + "T12:00:00");
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const fmt = (d) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return `${fmt(monday)} – ${fmt(sunday)}`;
+}
+
+function YgtssHistoryPanel({ ygtss }) {
+  const [expanded, setExpanded] = useState(null);
+  const entries = Array.isArray(ygtss) ? ygtss : [];
+
+  function toggle(weekOf) {
+    setExpanded((prev) => (prev === weekOf ? null : weekOf));
+  }
+
+  const thisWeek = getMondayISO(new Date());
+
+  return (
+    <Panel>
+      <div className="panel-title-row">
+        <div>
+          <h2>YGTSS weekly history</h2>
+          <p className="panel-subtitle">Parent observation — motor, vocal, and impairment dimensions tracked weekly.</p>
+        </div>
+        <div className="score-badge">
+          <strong>{entries.length}</strong>
+          <span>weeks</span>
+        </div>
+      </div>
+
+      {entries.length === 0 && (
+        <p className="yh-empty">No YGTSS entries yet. Complete this week's check-in from the home screen.</p>
+      )}
+
+      {entries.map((entry) => {
+        const score = scoreYgtss(entry);
+        const isThisWeek = entry.weekOf === thisWeek;
+        const isOpen = expanded === entry.weekOf;
+        return (
+          <div className="yh-row" key={entry.weekOf}>
+            <button className="yh-row-head" type="button" onClick={() => toggle(entry.weekOf)}>
+              <div className="yh-row-left">
+                <span className="yh-range">{fmtWeekRange(entry.weekOf)}</span>
+                {isThisWeek && <span className="yh-this-week">This week</span>}
+              </div>
+              <div className="yh-row-right">
+                <span className="yh-tts">TTS {score.total}/50</span>
+                <span className="yh-imp">{ygtssImpairmentLabel(entry.impairment)}</span>
+                <ChevronDown size={16} className={`yh-chevron ${isOpen ? "yh-chevron-open" : ""}`} />
+              </div>
+            </button>
+            {isOpen && (
+              <div className="yh-detail">
+                <div className="yh-detail-grid">
+                  {["motor", "vocal"].map((kind) => (
+                    <div key={kind}>
+                      <h4>{kind === "motor" ? "Motor" : "Vocal"} ({kind === "motor" ? score.motor : score.vocal}/25)</h4>
+                      {ygtssDimensions.map((dim) => (
+                        <div className="yh-dim-line" key={dim}>
+                          <span>{ygtssLabels[dim]}</span>
+                          <span>{entry[kind]?.[dim] ?? 0}/5</span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+                <div className="yh-dim-line">
+                  <span>Impairment</span>
+                  <span>{ygtssImpairmentLabel(entry.impairment)} ({entry.impairment}/50)</span>
+                </div>
+                {entry.weekNote && <p className="yh-note">"{entry.weekNote}"</p>}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </Panel>
   );
 }
