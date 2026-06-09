@@ -654,12 +654,7 @@ function App() {
         <NavButton icon={<Home />} label="Home" active={activeView === "home"} onClick={() => navigate("home")} />
         <NavButton icon={<FileText />} label="Logs" active={activeView === "logs"} onClick={() => navigate("logs")} />
         <NavButton icon={<NotebookPen />} label="Journal" active={activeView === "journal"} onClick={() => navigate("journal")} />
-        {isChildMode ? (
-          <>
-            <NavButton icon={<CircleHelp />} label="Help" active={activeView === "help"} onClick={() => navigate("help")} />
-            <NavButton icon={<LockKeyhole />} label="Parent" active={false} onClick={() => setAppMode("child-lock")} />
-          </>
-        ) : (
+        {!isChildMode && (
           <>
             <NavButton icon={<BarChart3 />} label="Trends" active={activeView === "trends"} onClick={() => navigate("trends")} />
             <NavButton icon={<ClipboardList />} label="Care Tools" active={activeView === "tools"} onClick={() => navigate("tools")} />
