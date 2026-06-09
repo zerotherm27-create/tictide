@@ -1861,12 +1861,174 @@ function YgtssBanner({ ygtss, onStartCheckin }) {
   );
 }
 
+const YGTSS_DIM_LABELS = {
+  number: { label: "Number", desc: "How many different tics" },
+  frequency: { label: "Frequency", desc: "How often tics happen" },
+  intensity: { label: "Intensity", desc: "Force or loudness" },
+  complexity: { label: "Complexity", desc: "Simple vs. elaborate" },
+  interference: { label: "Interference", desc: "Disruption to activity" },
+};
+
+const IMPAIRMENT_OPTS = [
+  { value: 0, label: "None" },
+  { value: 10, label: "Minimal" },
+  { value: 20, label: "Mild" },
+  { value: 30, label: "Moderate" },
+  { value: 40, label: "Severe" },
+  { value: 50, label: "Extreme" },
+];
+
 function YgtssCheckinModal({ onSave, onClose }) {
+  const [screen, setScreen] = useState(1);
+  const emptyDims = { number: 0, frequency: 0, intensity: 0, complexity: 0, interference: 0 };
+  const [motor, setMotor] = useState({ ...emptyDims });
+  const [noMotor, setNoMotor] = useState(false);
+  const [vocal, setVocal] = useState({ ...emptyDims });
+  const [noVocal, setNoVocal] = useState(false);
+  const [impairment, setImpairment] = useState(0);
+  const [note, setNote] = useState("");
+
+  function setDim(setter, key, value) {
+    setter((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function handleSave() {
+    const snapshot = {
+      weekOf: getMondayISO(new Date()),
+      completedAt: new Date().toISOString(),
+      motor: noMotor ? { ...emptyDims } : motor,
+      vocal: noVocal ? { ...emptyDims } : vocal,
+      impairment,
+      weekNote: note.trim(),
+    };
+    onSave(snapshot);
+  }
+
+  const motorScore = ygtssDimensions.reduce((s, k) => s + motor[k], 0);
+  const vocalScore = ygtssDimensions.reduce((s, k) => s + vocal[k], 0);
+  const totalScore = motorScore + vocalScore;
+
   return (
     <div className="clf-overlay" role="dialog" aria-modal="true">
-      <div className="clf-sheet" style={{ padding: "2rem", textAlign: "center" }}>
-        <p>YGTSS Check-in (coming in next task)</p>
-        <button type="button" onClick={onClose}>Close</button>
+      <div className="clf-sheet">
+        <div className="clf-topbar">
+          <button className="clf-back" type="button" onClick={screen === 1 ? onClose : () => setScreen((s) => s - 1)}>
+            {screen === 1 ? "✕" : "←"}
+          </button>
+          <div className="clf-dots">
+            {[1, 2, 3].map((n) => (
+              <span key={n} className={`clf-dot ${n < screen ? "clf-dot-done" : n === screen ? "clf-dot-active" : "clf-dot-todo"}`} />
+            ))}
+          </div>
+          <span />
+        </div>
+
+        {screen === 1 && (
+          <div className="ycm-screen">
+            <div className="ycm-head">
+              <h2>Motor tics this week</h2>
+              <span className="ycm-badge">YGTSS</span>
+            </div>
+            <label className="ycm-no-toggle">
+              <input type="checkbox" checked={noMotor} onChange={(e) => setNoMotor(e.target.checked)} />
+              No motor tics this week
+            </label>
+            {!noMotor && ygtssDimensions.map((dim) => (
+              <div className="ycm-dim-row" key={dim}>
+                <div className="ycm-dim-label">
+                  <strong>{YGTSS_DIM_LABELS[dim].label}</strong>
+                  <span>{YGTSS_DIM_LABELS[dim].desc}</span>
+                </div>
+                <div className="ycm-pills">
+                  {[0, 1, 2, 3, 4, 5].map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      className={`ycm-pill ${motor[dim] === v ? "ycm-pill-sel" : ""}`}
+                      onClick={() => setDim(setMotor, dim, v)}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <button className="clf-next-btn" type="button" onClick={() => { if (noMotor) setMotor({ ...emptyDims }); setScreen(2); }}>
+              Next →
+            </button>
+          </div>
+        )}
+
+        {screen === 2 && (
+          <div className="ycm-screen">
+            <div className="ycm-head">
+              <h2>Vocal tics this week</h2>
+              <span className="ycm-badge">YGTSS</span>
+            </div>
+            <label className="ycm-no-toggle">
+              <input type="checkbox" checked={noVocal} onChange={(e) => setNoVocal(e.target.checked)} />
+              No vocal tics this week
+            </label>
+            {!noVocal && ygtssDimensions.map((dim) => (
+              <div className="ycm-dim-row" key={dim}>
+                <div className="ycm-dim-label">
+                  <strong>{YGTSS_DIM_LABELS[dim].label}</strong>
+                  <span>{YGTSS_DIM_LABELS[dim].desc}</span>
+                </div>
+                <div className="ycm-pills">
+                  {[0, 1, 2, 3, 4, 5].map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      className={`ycm-pill ${vocal[dim] === v ? "ycm-pill-sel" : ""}`}
+                      onClick={() => setDim(setVocal, dim, v)}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <button className="clf-next-btn" type="button" onClick={() => { if (noVocal) setVocal({ ...emptyDims }); setScreen(3); }}>
+              Next →
+            </button>
+          </div>
+        )}
+
+        {screen === 3 && (
+          <div className="ycm-screen">
+            <div className="ycm-head">
+              <h2>Overall impact</h2>
+              <span className="ycm-badge">YGTSS</span>
+            </div>
+            <p className="ycm-screen-sub">How much did tics affect daily life this week?</p>
+            <div className="ycm-imp-grid">
+              {IMPAIRMENT_OPTS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  className={`ycm-imp-btn ${impairment === opt.value ? "ycm-imp-sel" : ""}`}
+                  onClick={() => setImpairment(opt.value)}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <div className="ycm-score-preview">
+              Motor {motorScore}/25 · Vocal {vocalScore}/25 · Total {totalScore}/50
+            </div>
+            <textarea
+              className="ycm-note"
+              placeholder="Week notes (optional)"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={3}
+            />
+            <button className="clf-save-btn" type="button" onClick={handleSave}>
+              Save check-in
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
