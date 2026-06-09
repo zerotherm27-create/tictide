@@ -9,6 +9,7 @@ import Brain from "lucide-react/dist/esm/icons/brain.js";
 import CalendarDays from "lucide-react/dist/esm/icons/calendar-days.js";
 import Check from "lucide-react/dist/esm/icons/check.js";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right.js";
+import ChevronDown from "lucide-react/dist/esm/icons/chevron-down.js";
 import CircleHelp from "lucide-react/dist/esm/icons/circle-help.js";
 import ClipboardList from "lucide-react/dist/esm/icons/clipboard-list.js";
 import Clock3 from "lucide-react/dist/esm/icons/clock-3.js";
@@ -56,11 +57,13 @@ const STORAGE = {
 const emptyLogs = [];
 const emptyJournals = [];
 
-const defaultYgtss = {
+const defaultYgtss = [];
+
+const emptyYgtssSnapshot = {
   motor: { number: 0, frequency: 0, intensity: 0, complexity: 0, interference: 0 },
   vocal: { number: 0, frequency: 0, intensity: 0, complexity: 0, interference: 0 },
   impairment: 0,
-  weekNote: "Use this as a weekly parent observation, not a formal clinician score.",
+  weekNote: "",
 };
 
 const putsItems = [
@@ -121,6 +124,18 @@ const ygtssLabels = {
   interference: "Interference",
 };
 
+function getMondayISO(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+  return d.toISOString().slice(0, 10);
+}
+
+function hasEntryThisWeek(ygtss) {
+  const weekOf = getMondayISO(new Date());
+  return Array.isArray(ygtss) && ygtss.some((s) => s.weekOf === weekOf);
+}
+
 function App() {
   const [logs, setLogs] = useStoredState(STORAGE.logs, emptyLogs);
   const [journals, setJournals] = useStoredState(STORAGE.journals, emptyJournals);
@@ -159,6 +174,12 @@ function App() {
   const [recoveryConfirm, setRecoveryConfirm] = useState("");
   const [recoveryBusy, setRecoveryBusy] = useState(false);
   const [recoveryMessage, setRecoveryMessage] = useState("Choose a new password for the parent account.");
+  useEffect(() => {
+    if (!Array.isArray(ygtss)) {
+      const weekOf = getMondayISO(new Date());
+      setYgtss([{ weekOf, completedAt: new Date().toISOString(), ...ygtss }]);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const isChildMode = appMode === "child";
   const isChildLocked = appMode === "child-lock";
   const needsSetup = !profile.setupComplete;
@@ -264,7 +285,10 @@ function App() {
 
   const stats = useMemo(() => buildStats(logs), [logs]);
   const journalStats = useMemo(() => buildJournalStats(journals), [journals]);
-  const ygtssScore = useMemo(() => scoreYgtss(ygtss), [ygtss]);
+  const ygtssScore = useMemo(() => {
+    const latest = Array.isArray(ygtss) && ygtss.length > 0 ? ygtss[0] : null;
+    return scoreYgtss(latest);
+  }, [ygtss]);
   const putsScore = useMemo(() => scorePuts(puts), [puts]);
   const breathingGuide = getBreathingGuide(seconds);
   const report = useMemo(
@@ -3093,11 +3117,12 @@ function useStoredState(key, fallback) {
   return [value, setValue];
 }
 
-function scoreYgtss(ygtss) {
-  const motor = ygtssDimensions.reduce((sum, key) => sum + Number(ygtss.motor[key] || 0), 0);
-  const vocal = ygtssDimensions.reduce((sum, key) => sum + Number(ygtss.vocal[key] || 0), 0);
+function scoreYgtss(snapshot) {
+  if (!snapshot) return { motor: 0, vocal: 0, total: 0, global: 0 };
+  const motor = ygtssDimensions.reduce((sum, key) => sum + Number(snapshot.motor?.[key] || 0), 0);
+  const vocal = ygtssDimensions.reduce((sum, key) => sum + Number(snapshot.vocal?.[key] || 0), 0);
   const total = motor + vocal;
-  const global = total + Number(ygtss.impairment || 0);
+  const global = total + Number(snapshot.impairment || 0);
   return { motor, vocal, total, global };
 }
 
