@@ -174,6 +174,7 @@ function App() {
   const [recoveryConfirm, setRecoveryConfirm] = useState("");
   const [recoveryBusy, setRecoveryBusy] = useState(false);
   const [recoveryMessage, setRecoveryMessage] = useState("Choose a new password for the parent account.");
+  const [ygtssCheckinOpen, setYgtssCheckinOpen] = useState(false);
   useEffect(() => {
     if (!Array.isArray(ygtss)) {
       const weekOf = getMondayISO(new Date());
@@ -425,6 +426,11 @@ function App() {
     setActiveView("home");
   }
 
+  function handleSaveYgtss(snapshot) {
+    setYgtss((prev) => [snapshot, ...(Array.isArray(prev) ? prev : [])]);
+    setYgtssCheckinOpen(false);
+  }
+
   if (needsSetup) {
     return (
       <>
@@ -600,6 +606,8 @@ function App() {
             onTools={() => navigate("tools")}
             onTips={() => navigate("tips")}
             isChildMode={isChildMode}
+            ygtss={ygtss}
+            onYgtssCheckin={() => setYgtssCheckinOpen(true)}
           />
         )}
         {activeView === "logs" && <LogsView logs={logs} onExport={exportCsv} onAdd={() => setFormOpen(true)} />}
@@ -690,6 +698,12 @@ function App() {
         )}
       </nav>
 
+      {ygtssCheckinOpen && !isChildMode && (
+        <YgtssCheckinModal
+          onSave={handleSaveYgtss}
+          onClose={() => setYgtssCheckinOpen(false)}
+        />
+      )}
       {formOpen && isChildMode && (
         <ChildLogForm
           defaultContexts={selectedContexts}
@@ -1748,6 +1762,7 @@ function ChildTipsView({ onBack }) {
 function ParentHomeView(props) {
   return (
     <>
+      <YgtssBanner ygtss={props.ygtss} onStartCheckin={props.onYgtssCheckin} />
       <section className="quick-grid" aria-label="Quick actions">
         <ActionCard tone="coral" icon={<Plus />} title="Log Tic" text="Record tic, urge, pain, context" onClick={props.onAdd} />
         <ActionCard tone="teal" icon={<Waves />} title="Calm Mode" text="Breathing and grounding" onClick={() => props.setRunning(true)} />
@@ -1813,6 +1828,47 @@ function ParentHomeView(props) {
 
       <RecentLogs logs={props.logs} onViewAll={props.onLogs} />
     </>
+  );
+}
+
+function YgtssBanner({ ygtss, onStartCheckin }) {
+  const [dismissed, setDismissed] = useState(false);
+  if (dismissed || hasEntryThisWeek(ygtss)) return null;
+  const monday = getMondayISO(new Date());
+  const sun = new Date(monday + "T12:00:00");
+  sun.setDate(sun.getDate() + 6);
+  const fmt = (d) =>
+    new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const range = `${fmt(monday)} – ${fmt(sun)}`;
+  return (
+    <div className="ygtss-banner">
+      <div className="ygtss-banner-body">
+        <CalendarDays size={18} />
+        <div>
+          <strong>Rate this week's tics</strong>
+          <span>{range} · YGTSS</span>
+        </div>
+      </div>
+      <div className="ygtss-banner-actions">
+        <button className="ygtss-banner-cta" type="button" onClick={onStartCheckin}>
+          Start check-in →
+        </button>
+        <button className="ygtss-banner-dismiss" type="button" aria-label="Dismiss" onClick={() => setDismissed(true)}>
+          ✕
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function YgtssCheckinModal({ onSave, onClose }) {
+  return (
+    <div className="clf-overlay" role="dialog" aria-modal="true">
+      <div className="clf-sheet" style={{ padding: "2rem", textAlign: "center" }}>
+        <p>YGTSS Check-in (coming in next task)</p>
+        <button type="button" onClick={onClose}>Close</button>
+      </div>
+    </div>
   );
 }
 
