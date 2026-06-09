@@ -780,6 +780,25 @@ button:disabled {
 .restore-form {
   margin-top: 14px;
 }
+.restore-note {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid rgba(8, 119, 125, 0.16);
+  border-radius: 8px;
+  background: var(--teal-soft);
+}
+.restore-note svg {
+  color: var(--teal);
+}
+.restore-note p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
 .restore-actions {
   display: flex;
   align-items: center;
@@ -994,4 +1013,14 @@ button:disabled {
   .journal-entry-head { align-items: flex-start; flex-direction: column; gap: 4px; }
   .log-row { grid-template-columns: 8px minmax(0, 1fr) auto; }
   .log-row > svg { display: none; }
-  .log-score { min-widt
+  .log-score { min-width: 44px; }
+  .action-card { min-height: 78px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

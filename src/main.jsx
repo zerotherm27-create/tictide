@@ -731,7 +731,7 @@ function SetupView({ profile, onRestore, installPrompt, isInstalled, updateReady
         parentPin: restoreParentPin,
       });
     } catch (error) {
-      setRestoreMessage(`Restore failed: ${error.message}`);
+      setRestoreMessage(friendlyAuthError(error, "restore"));
     } finally {
       setRestoreBusy(false);
     }
@@ -766,6 +766,10 @@ function SetupView({ profile, onRestore, installPrompt, isInstalled, updateReady
               <p className="panel-subtitle">Sign in with the parent account, then this tablet will load the child profile and saved logs.</p>
             </div>
             <CloudDownload className="title-wave" aria-hidden="true" />
+          </div>
+          <div className="restore-note">
+            <Check size={18} />
+            <p>First, on the desktop profile, open Account & Sync, create or sign in to the parent account, then tap Sync tablet data to server.</p>
           </div>
           {!isSupabaseConfigured && (
             <div className="setup-box">
@@ -1689,7 +1693,7 @@ function AccountSyncView({
         : await supabase.auth.signInWithPassword(credentials);
     setBusy(false);
     if (result.error) {
-      setMessage(result.error.message);
+      setMessage(friendlyAuthError(result.error, mode === "Create" ? "create" : "sign-in"));
       return;
     }
     setSession(result.data.session || null);
@@ -2334,6 +2338,31 @@ function mapCloudJournal(row) {
   };
 }
 
+function friendlyAuthError(error, context = "sign-in") {
+  const code = error?.code || "";
+  const message = error?.message || "Authentication failed.";
+  const normalized = message.toLowerCase();
+
+  if (code === "email_not_confirmed" || normalized.includes("email not confirmed")) {
+    return "Please confirm the parent email first. Open the Supabase confirmation email, then try signing in again.";
+  }
+
+  if (code === "invalid_credentials" || normalized.includes("invalid login credentials")) {
+    if (context === "restore") {
+      return "Could not sign in. On the desktop profile, open Account & Sync, create or sign in to the parent account, tap Sync tablet data to server, then use that same email and password here.";
+    }
+    return "Could not sign in. Check the parent email and password, or use Create if this parent account has not been made yet.";
+  }
+
+  if (normalized.includes("password")) {
+    return context === "create"
+      ? "Password was not accepted. Use at least 8 characters."
+      : "Password was not accepted. Check it and try again.";
+  }
+
+  return `${context === "restore" ? "Restore" : "Account"} failed: ${message}`;
+}
+
 function useStoredState(key, fallback) {
   const [value, setValue] = useState(() => {
     try {
@@ -2354,4 +2383,163 @@ function useStoredState(key, fallback) {
 function scoreYgtss(ygtss) {
   const motor = ygtssDimensions.reduce((sum, key) => sum + Number(ygtss.motor[key] || 0), 0);
   const vocal = ygtssDimensions.reduce((sum, key) => sum + Number(ygtss.vocal[key] || 0), 0);
-  const total = motor + vocal
+  const total = motor + vocal;
+  const global = total + Number(ygtss.impairment || 0);
+  return { motor, vocal, total, global };
+}
+
+function scorePuts(puts) {
+  const total = Object.values(puts).reduce((sum, value) => sum + Number(value || 0), 0);
+  return { total };
+}
+
+function buildStats(logs) {
+  const avgUrge =
+    logs.length === 0 ? "0.0" : (logs.reduce((sum, log) => sum + Number(log.urge), 0) / logs.length).toFixed(1);
+  const contexts = logs.flatMap((log) => log.contexts);
+  const commonContext =
+    contexts.length === 0
+      ? "None"
+      : contexts.reduce(
+          (best, context) => {
+            const count = contexts.filter((item) => item === context).length;
+            return count > best.count ? { name: context, count } : best;
+          },
+          { name: contexts[0], count: 0 },
+        ).name;
+
+  const labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const days = labels.map((label, index) => {
+    const dayLogs = logs.filter((log) => new Date(log.createdAt).getDay() === ((index + 1) % 7));
+    const motor = dayLogs.filter((log) => log.ticType === "Motor").length;
+    const vocal = dayLogs.length - motor;
+    return {
+      label,
+      motor,
+      vocal,
+      total: dayLogs.length,
+    };
+  });
+
+  return { avgUrge, commonContext, days };
+}
+
+function buildJournalStats(journals) {
+  const avgPressure =
+    journals.length === 0
+      ? "0.0"
+      : (journals.reduce((sum, entry) => sum + Number(entry.ticPressure || 0), 0) / journals.length).toFixed(1);
+  const moods = journals.map((entry) => entry.mood).filter(Boolean);
+  const commonMood =
+    moods.length === 0
+      ? "None"
+      : moods.reduce(
+          (best, mood) => {
+            const count = moods.filter((item) => item === mood).length;
+            return count > best.count ? { name: mood, count } : best;
+          },
+          { name: moods[0], count: 0 },
+        ).name;
+  return { avgPressure, commonMood };
+}
+
+function buildDoctorReport({ logs, journals, stats, journalStats, ygtssScore, putsScore, meds, profile, redFlags }) {
+  const activeFlags = Object.entries(redFlags)
+    .filter(([, value]) => value)
+    .map(([key]) => key)
+    .join(", ") || "None marked";
+  const latestLogs = logs
+    .slice(0, 5)
+    .map((log) => `- ${formatLogTime(log.createdAt)}: ${log.ticType} ${log.ticName}, urge ${log.urge}/10, intensity ${log.intensity}/10, contexts ${log.contexts.join("; ")}, pain ${log.pain || "None"}, note: ${log.note}`)
+    .join("\n");
+  const latestJournals = journals
+    .slice(0, 5)
+    .map((entry) => `- ${formatLogTime(entry.createdAt)}: mood ${entry.mood}, urge ${entry.urgeBefore}/10, pressure ${entry.ticPressure}/10, body ${entry.bodyFeeling}, helped: ${entry.helped}, trigger: ${entry.trigger}, note: ${entry.note}`)
+    .join("\n");
+  const medLines = meds
+    .map((med) => `- ${med.name || "Medication"} ${med.dose ? `(${med.dose})` : ""}; dates: ${med.dates || "not set"}; response: ${med.response || "not set"}`)
+    .join("\n");
+
+  return [
+    "TicTide doctor visit summary",
+    `Generated: ${new Date().toLocaleString()}`,
+    "",
+    `Child: ${profile.childName}`,
+    `ADHD diagnosis: ${profile.adhdDiagnosed ? "Yes" : "Not marked"}`,
+    `Tic duration: ${profile.ticDuration}`,
+    `Neuro-ped status: ${profile.neuroPedStatus}`,
+    `Medication note: ${profile.medicationNote}`,
+    "",
+    "Current tracking summary",
+    `- Total logs: ${logs.length}`,
+    `- Average urge: ${stats.avgUrge}/10`,
+    `- Most common context: ${stats.commonContext}`,
+    `- Journal entries: ${journals.length}`,
+    `- Journal common mood: ${journalStats.commonMood}`,
+    `- Journal average tic pressure: ${journalStats.avgPressure}/10`,
+    `- YGTSS-style parent observation: motor ${ygtssScore.motor}/25, vocal ${ygtssScore.vocal}/25, tic severity ${ygtssScore.total}/50, global ${ygtssScore.global}/100`,
+    `- PUTS-style urge tracker: ${putsScore.total}/36`,
+    `- Red flags marked: ${activeFlags}`,
+    "",
+    "Medication history",
+    medLines,
+    "",
+    "Recent tic logs",
+    latestLogs,
+    "",
+    "Recent journal entries",
+    latestJournals || "No journal entries yet",
+    "",
+    "Questions for clinician",
+    "- Does this history fit Tourette syndrome, persistent tic disorder, or another tic-related diagnosis?",
+    "- Should we formally assess tic severity using clinician YGTSS?",
+    "- Would CBIT or habit-reversal therapy be appropriate now?",
+    "- How should ADHD treatment and tic treatment be coordinated?",
+    "- What should we monitor if medication is used again?",
+  ].join("\n");
+}
+
+function formatDate(value) {
+  return new Intl.DateTimeFormat("en", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  }).format(value);
+}
+
+function formatLogTime(value) {
+  const date = new Date(value);
+  const sameDay = new Date().toDateString() === date.toDateString();
+  return `${sameDay ? "Today" : "Earlier"}, ${date.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  })}`;
+}
+
+function viewTitle(view) {
+  return {
+    logs: "Logs",
+    journal: "Journal",
+    trends: "Trends",
+    tools: "Care Tools",
+    account: "Account & Sync",
+    help: "Help Guide",
+    settings: "Settings",
+  }[view];
+}
+
+function downloadFile(filename, parts, type) {
+  const blob = new Blob(parts, { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function dateStamp() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+createRoot(document.getElementById("root")).render(<App />);
