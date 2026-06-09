@@ -633,7 +633,7 @@ git commit -m "feat: add child-home-v2 CSS styles"
 **Files:**
 - Modify: `src/main.jsx` — insert `ChildLogForm` function after `ChildHomeView`
 
-- [ ] **Step 1: Add ChildLogForm component**
+- [ ] **Step 1: Add ChildLogForm component (multi-select tic tiles)**
 
 Insert directly after the closing `}` of `ChildHomeView`:
 
@@ -706,12 +706,20 @@ const SIZE_OPTS = [
 
 function ChildLogForm({ defaultContexts = [], onSave, onClose }) {
   const [step, setStep] = React.useState(1);
-  const [ticTile, setTicTile] = React.useState(null);       // one of TIC_TILES
+  const [ticTiles, setTicTiles] = React.useState([]);        // array — multi-select
   const [sizePick, setSizePick] = React.useState(null);      // one of SIZE_OPTS
   const [hadUrge, setHadUrge] = React.useState(null);        // true/false/null
   const [hurt, setHurt] = React.useState(null);              // true/false/null
   const [contexts, setContexts] = React.useState(defaultContexts);
   const [note, setNote] = React.useState("");
+
+  function toggleTile(tile) {
+    setTicTiles((prev) =>
+      prev.some((t) => t.id === tile.id)
+        ? prev.filter((t) => t.id !== tile.id)
+        : [...prev, tile]
+    );
+  }
 
   function toggleCtx(label) {
     setContexts((prev) =>
@@ -720,9 +728,13 @@ function ChildLogForm({ defaultContexts = [], onSave, onClose }) {
   }
 
   function handleSave() {
+    const labels = ticTiles.map((t) => t.label);
+    const hasVocal = ticTiles.some((t) => t.ticType === "Vocal");
+    const hasMotor = ticTiles.some((t) => t.ticType === "Motor");
+    const ticType = hasVocal && hasMotor ? "Both" : hasVocal ? "Vocal" : "Motor";
     onSave({
-      ticName: ticTile?.label ?? "Custom",
-      ticType: ticTile?.ticType ?? "Motor",
+      ticName: labels.length > 0 ? labels.join(" + ") : "Custom",
+      ticType,
       intensity: sizePick?.intensity ?? 5,
       hadUrge: hadUrge ?? false,
       hurt: hurt ?? false,
@@ -767,15 +779,15 @@ function ChildLogForm({ defaultContexts = [], onSave, onClose }) {
           <div className="clf-body">
             <div>
               <p className="clf-q">What kind of tic was it?</p>
-              <p className="clf-hint">Pick the one that fits best</p>
+              <p className="clf-hint">Pick all that fit — he can choose more than one</p>
             </div>
             <div className="clf-tile-grid">
               {TIC_TILES.map((tile) => (
                 <button
                   key={tile.id}
                   type="button"
-                  className={`clf-tile ${ticTile?.id === tile.id ? "clf-tile-sel" : ""}`}
-                  onClick={() => setTicTile(tile)}
+                  className={`clf-tile ${ticTiles.some((t) => t.id === tile.id) ? "clf-tile-sel" : ""}`}
+                  onClick={() => toggleTile(tile)}
                 >
                   <span className="clf-tile-icon">{tile.icon}</span>
                   <span className="clf-tile-lbl">{tile.label}</span>
@@ -785,7 +797,7 @@ function ChildLogForm({ defaultContexts = [], onSave, onClose }) {
             <button
               className="clf-next-btn"
               type="button"
-              disabled={!ticTile}
+              disabled={ticTiles.length === 0}
               onClick={() => setStep(2)}
             >
               Next

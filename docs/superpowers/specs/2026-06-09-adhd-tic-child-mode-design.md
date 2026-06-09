@@ -77,7 +77,7 @@ Coral button (54px height, high contrast) below the context chips. Launches the 
 Replaces the current single all-fields form. One question per screen with a progress dot indicator.
 
 **Step 1 — What kind of tic?**  
-Four tiles in a 2×2 grid with representative SVG icons (stroke-width 2.5):
+Four tiles in a 2×2 grid with representative SVG icons (stroke-width 2.5). **Multi-select** — the child can tap any combination of tiles before tapping "Next →". At least one tile must be selected to proceed. Selected tiles show teal fill + white icon + teal border; unselected show white bg + teal icon + faint border.
 
 | Tile | Icon | Tic types covered |
 |---|---|---|
@@ -85,6 +85,8 @@ Four tiles in a 2×2 grid with representative SVG icons (stroke-width 2.5):
 | Face or eyes | Eye with radiating lash lines | Eye blinking, facial grimacing, nose scrunching |
 | Sound or voice | Mic with bracket arc | Throat clearing, sniffing, grunting, echolalia |
 | Head or neck | Head circle + neck lines + rotation arcs | Head jerking, neck stretching, head shaking |
+
+The saved log stores `ticType` as an array (e.g. `["arms-legs", "sound-voice"]`). A "Next →" button (disabled until ≥1 tile selected) replaces auto-advance.
 
 **Step 2 — How strong + Did you feel it coming?**  
 - Three size circles (small/medium/large, visually scaled): "barely there / noticeable / hard to hide"
