@@ -663,7 +663,14 @@ function App() {
         )}
       </nav>
 
-      {formOpen && (
+      {formOpen && isChildMode && (
+        <ChildLogForm
+          defaultContexts={selectedContexts}
+          onSave={saveChildLog}
+          onClose={() => setFormOpen(false)}
+        />
+      )}
+      {formOpen && !isChildMode && (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setFormOpen(false)}>
           <form className="log-form" onSubmit={addLog} onMouseDown={(event) => event.stopPropagation()} aria-label="Log a tic">
             <div className="panel-title-row">
@@ -1349,6 +1356,262 @@ function ChildHomeView(props) {
       </button>
 
     </section>
+  );
+}
+
+const TIC_TILES = [
+  {
+    id: "arms-legs",
+    label: "Arms or legs",
+    ticType: "Motor",
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="4" r="2"/>
+        <line x1="12" y1="6" x2="12" y2="13"/>
+        <line x1="12" y1="9" x2="6.5" y2="7"/>
+        <line x1="12" y1="9" x2="17.5" y2="7"/>
+        <line x1="12" y1="13" x2="9" y2="19"/>
+        <line x1="12" y1="13" x2="15" y2="19"/>
+      </svg>
+    ),
+  },
+  {
+    id: "face-eyes",
+    label: "Face or eyes",
+    ticType: "Motor",
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+        <circle cx="12" cy="12" r="3"/>
+        <line x1="8" y1="6.5" x2="7" y2="4.5"/>
+        <line x1="12" y1="5.5" x2="12" y2="3.5"/>
+        <line x1="16" y1="6.5" x2="17" y2="4.5"/>
+      </svg>
+    ),
+  },
+  {
+    id: "sound-voice",
+    label: "Sound or voice",
+    ticType: "Vocal",
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" x2="12" y1="19" y2="22"/>
+        <line x1="8" x2="16" y1="22" y2="22"/>
+      </svg>
+    ),
+  },
+  {
+    id: "head-neck",
+    label: "Head or neck",
+    ticType: "Motor",
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="9" r="5"/>
+        <line x1="10" y1="14" x2="10" y2="17"/>
+        <line x1="14" y1="14" x2="14" y2="17"/>
+        <path d="M7 17h10"/>
+        <path d="M4 7 Q3 4 6 3"/>
+        <path d="M20 7 Q21 4 18 3"/>
+      </svg>
+    ),
+  },
+];
+
+const SIZE_OPTS = [
+  { label: "Small",  sub: "barely there", intensity: 3, size: 28 },
+  { label: "Medium", sub: "noticeable",   intensity: 6, size: 36 },
+  { label: "Big",    sub: "hard to hide", intensity: 9, size: 44 },
+];
+
+function ChildLogForm({ defaultContexts = [], onSave, onClose }) {
+  const [step, setStep] = React.useState(1);
+  const [ticTiles, setTicTiles] = React.useState([]);        // array — multi-select
+  const [sizePick, setSizePick] = React.useState(null);      // one of SIZE_OPTS
+  const [hadUrge, setHadUrge] = React.useState(null);        // true/false/null
+  const [hurt, setHurt] = React.useState(null);              // true/false/null
+  const [contexts, setContexts] = React.useState(defaultContexts);
+  const [note, setNote] = React.useState("");
+
+  function toggleTile(tile) {
+    setTicTiles((prev) =>
+      prev.some((t) => t.id === tile.id)
+        ? prev.filter((t) => t.id !== tile.id)
+        : [...prev, tile]
+    );
+  }
+
+  function toggleCtx(label) {
+    setContexts((prev) =>
+      prev.includes(label) ? prev.filter((c) => c !== label) : [...prev, label]
+    );
+  }
+
+  function handleSave() {
+    const labels = ticTiles.map((t) => t.label);
+    const hasVocal = ticTiles.some((t) => t.ticType === "Vocal");
+    const hasMotor = ticTiles.some((t) => t.ticType === "Motor");
+    const ticType = hasVocal && hasMotor ? "Both" : hasVocal ? "Vocal" : "Motor";
+    onSave({
+      ticName: labels.length > 0 ? labels.join(" + ") : "Custom",
+      ticType,
+      intensity: sizePick?.intensity ?? 5,
+      hadUrge: hadUrge ?? false,
+      hurt: hurt ?? false,
+      contexts,
+      note,
+    });
+  }
+
+  const DOTS = [
+    { n: 1, done: step > 1, active: step === 1 },
+    { n: 2, done: step > 2, active: step === 2 },
+    { n: 3, done: false,    active: step === 3 },
+  ];
+
+  return (
+    <div className="clf-overlay" role="dialog" aria-modal="true" aria-label="Save a tic">
+      <div className="clf-sheet">
+
+        {/* Top bar */}
+        <div className="clf-topbar">
+          {step > 1 ? (
+            <button className="clf-back" type="button" onClick={() => setStep((s) => s - 1)}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+              Back
+            </button>
+          ) : (
+            <span/>
+          )}
+          <div className="clf-dots">
+            {DOTS.map((d) => (
+              <span
+                key={d.n}
+                className={`clf-dot ${d.active ? "clf-dot-active" : d.done ? "clf-dot-done" : "clf-dot-todo"}`}
+              />
+            ))}
+          </div>
+          <button className="clf-close" type="button" onClick={onClose}>Close</button>
+        </div>
+
+        {/* Step 1: What kind? */}
+        {step === 1 && (
+          <div className="clf-body">
+            <div>
+              <p className="clf-q">What kind of tic was it?</p>
+              <p className="clf-hint">Pick all that fit — he can choose more than one</p>
+            </div>
+            <div className="clf-tile-grid">
+              {TIC_TILES.map((tile) => (
+                <button
+                  key={tile.id}
+                  type="button"
+                  className={`clf-tile ${ticTiles.some((t) => t.id === tile.id) ? "clf-tile-sel" : ""}`}
+                  onClick={() => toggleTile(tile)}
+                >
+                  <span className="clf-tile-icon">{tile.icon}</span>
+                  <span className="clf-tile-lbl">{tile.label}</span>
+                </button>
+              ))}
+            </div>
+            <button
+              className="clf-next-btn"
+              type="button"
+              disabled={ticTiles.length === 0}
+              onClick={() => setStep(2)}
+            >
+              Next
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+          </div>
+        )}
+
+        {/* Step 2: How strong + urge + hurt */}
+        {step === 2 && (
+          <div className="clf-body">
+            <div>
+              <p className="clf-q">How strong was it?</p>
+              <p className="clf-hint">Everyone's tics are different — this is just for you</p>
+            </div>
+            <div className="clf-size-row">
+              {SIZE_OPTS.map((opt) => (
+                <button
+                  key={opt.label}
+                  type="button"
+                  className={`clf-size-opt ${sizePick?.label === opt.label ? "clf-size-sel" : ""}`}
+                  onClick={() => setSizePick(opt)}
+                >
+                  <svg width={opt.size} height={opt.size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r={opt.size / 4}/></svg>
+                  <span className="clf-size-lbl">{opt.label}</span>
+                  <span className="clf-size-sub">{opt.sub}</span>
+                </button>
+              ))}
+            </div>
+            <div className="clf-yn-card">
+              <div>
+                <p className="clf-yn-q">Did you feel it coming?</p>
+                <p className="clf-yn-sub">The "premonitory urge" — HRT</p>
+              </div>
+              <div className="clf-yn-btns">
+                <button type="button" className={`clf-yn-btn ${hadUrge === true ? "clf-yn-yes-sel" : ""}`} onClick={() => setHadUrge(true)}>Yes</button>
+                <button type="button" className={`clf-yn-btn ${hadUrge === false ? "clf-yn-no-sel" : ""}`} onClick={() => setHadUrge(false)}>No</button>
+              </div>
+            </div>
+            <div className="clf-yn-card">
+              <p className="clf-yn-q">Did it hurt?</p>
+              <div className="clf-yn-btns">
+                <button type="button" className={`clf-yn-btn ${hurt === true ? "clf-yn-yes-sel" : ""}`} onClick={() => setHurt(true)}>Yes</button>
+                <button type="button" className={`clf-yn-btn ${hurt === false ? "clf-yn-no-sel" : ""}`} onClick={() => setHurt(false)}>No</button>
+              </div>
+            </div>
+            <button className="clf-next-btn" type="button" onClick={() => setStep(3)}>
+              Next
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+            <button className="clf-skip" type="button" onClick={() => setStep(3)}>Skip this step →</button>
+          </div>
+        )}
+
+        {/* Step 3: Context + save */}
+        {step === 3 && (
+          <div className="clf-body">
+            <div>
+              <p className="clf-q">What was happening?</p>
+              <p className="clf-hint">From your home screen — tap to change</p>
+            </div>
+            <div className="cv2-chip-grid">
+              {["Stressed","School","Tired","Excited","Screens","Bored"].map((label) => (
+                <button
+                  key={label}
+                  type="button"
+                  className={`cv2-chip ${contexts.includes(label) ? "cv2-chip-on" : "cv2-chip-off"}`}
+                  onClick={() => toggleCtx(label)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="clf-note-wrap">
+              <label className="clf-note-label" htmlFor="clf-note">One short note (optional)</label>
+              <textarea
+                id="clf-note"
+                className="clf-note"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="One word or one sentence is enough."
+                rows={2}
+              />
+            </div>
+            <button className="clf-save-btn" type="button" onClick={handleSave}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              Save it
+            </button>
+          </div>
+        )}
+
+      </div>
+    </div>
   );
 }
 
