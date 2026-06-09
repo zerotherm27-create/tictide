@@ -1980,7 +1980,18 @@ function CareToolsView({ profile, setProfile, ygtss, setYgtss, ygtssScore, puts,
         <ClinicalProfile profile={profile} setProfile={setProfile} />
         <CriteriaPanel />
       </div>
-      <YgtssPanel ygtss={ygtss} setYgtss={setYgtss} score={ygtssScore} />
+      <YgtssPanel
+        ygtss={Array.isArray(ygtss) && ygtss.length > 0 ? ygtss[0] : emptyYgtssSnapshot}
+        setYgtss={(updater) =>
+          setYgtss((prev) => {
+            const arr = Array.isArray(prev) ? prev : [];
+            const current = arr[0] ?? { ...emptyYgtssSnapshot, weekOf: getMondayISO(new Date()), completedAt: new Date().toISOString() };
+            const updated = typeof updater === "function" ? updater(current) : updater;
+            return [updated, ...arr.slice(1)];
+          })
+        }
+        score={ygtssScore}
+      />
       <PutsPanel puts={puts} setPuts={setPuts} score={putsScore} />
       <div className="tools-grid">
         <MedicationPanel meds={meds} setMeds={setMeds} />
