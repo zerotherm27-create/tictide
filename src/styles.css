@@ -402,20 +402,30 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 .title-wave { color: var(--teal); }
 .danger-icon { color: var(--danger); }
-.calm-layout { position: relative; z-index: 1; display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 22px; align-items: center; }
+.calm-layout { position: relative; z-index: 1; display: grid; grid-template-columns: clamp(180px, 22vw, 224px) minmax(0, 1fr); gap: 22px; align-items: center; }
+/* Hallmark · component: breathing-ring · genre: playful · theme: project (teal/coral/gold)
+ * display-only (non-interactive) · responsive 320/375/414/768/desktop
+ * text sized in em from one ring base so it can never overflow the inner circle
+ */
 .breathing-ring {
+  --ring-size: clamp(176px, 58vw, 224px);
   display: grid;
-  place-items: center;
+  justify-items: center;
   align-content: center;
-  width: 220px;
+  gap: 0.1em;
+  width: var(--ring-size);
+  height: var(--ring-size);
   aspect-ratio: 1;
   border-radius: 50%;
-  background: radial-gradient(circle, var(--surface) 51%, transparent 52%), conic-gradient(from 190deg, var(--teal) 0 58%, var(--gold) 58% 75%, var(--coral) 75% 100%);
-  box-shadow: inset 0 0 0 12px rgba(255,255,255,0.8), 0 18px 38px rgba(13,138,143,0.15);
+  background: radial-gradient(circle, var(--surface) 56%, transparent 57%), conic-gradient(from 190deg, var(--teal) 0 58%, var(--gold) 58% 75%, var(--coral) 75% 100%);
+  box-shadow: inset 0 0 0 10px rgba(255,255,255,0.85), 0 18px 38px rgba(13,138,143,0.15);
   text-align: center;
+  font-size: clamp(13px, 3.1vw, 16px);
+  overflow: hidden;
 }
-.breathing-ring span, .breathing-ring small { color: var(--muted); font-size: 0.82rem; font-weight: 700; }
-.breathing-ring strong { margin: 6px 0; font-size: 2.3rem; letter-spacing: 0; }
+.breathing-ring > * { max-width: 80%; }
+.breathing-ring span, .breathing-ring small { color: var(--muted); font-size: 0.82em; font-weight: 700; line-height: 1.15; }
+.breathing-ring strong { margin: 0; font-size: 2.4em; line-height: 1; letter-spacing: 0; color: var(--teal-dark); }
 .calm-controls, .view-stack, .insight-list, .settings-list, .check-list, .med-list { display: grid; gap: 14px; }
 .breath-instructions {
   padding: 12px;
@@ -966,7 +976,7 @@ button:disabled {
   .child-big-card b { align-self: center; white-space: nowrap; }
   .calm-layout { grid-template-columns: 1fr; }
   .child-calm-layout { grid-template-columns: 1fr; }
-  .breathing-ring { width: min(220px, 100%); margin: 0 auto; }
+  .breathing-ring { width: min(var(--ring-size), 100%); margin: 0 auto; }
   .child-ring { width: min(210px, 100%); }
   .score-summary, .stat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .puts-item { grid-template-columns: 1fr; }
@@ -1220,31 +1230,36 @@ button:disabled {
   color: var(--teal-dark);
   letter-spacing: 0.3px;
 }
-/* Use .breathing-ring.cv2-ring to beat the existing .breathing-ring span (0,1,1) selector */
+/* Use .breathing-ring.cv2-ring to beat the existing .breathing-ring span (0,1,1) selector.
+   Child ring: same em-from-base scaling, responsive size, circular overflow clip. */
 .breathing-ring.cv2-ring {
-  width: 148px !important;
-  height: 148px !important;
+  --ring-size: clamp(140px, 46vw, 168px);
+  width: var(--ring-size) !important;
+  height: var(--ring-size) !important;
+  font-size: clamp(11px, 3.6vw, 14px);
 }
 .breathing-ring.cv2-ring span {    /* cv2-ring-phase */
-  font-size: 0.57rem;
+  font-size: 0.6em;
   font-weight: 900;
   color: var(--muted);
   text-transform: uppercase;
-  letter-spacing: 1.8px;
+  letter-spacing: 0.14em;
+  line-height: 1.1;
   display: block;
 }
 .breathing-ring.cv2-ring strong {  /* cv2-ring-count */
-  font-size: 2.6rem;
+  font-size: 2.7em;
   font-weight: 900;
   color: var(--teal-dark);
   line-height: 1;
-  letter-spacing: -2px;
+  letter-spacing: -0.04em;
   margin: 0;
 }
 .breathing-ring.cv2-ring small {   /* cv2-ring-prompt */
-  font-size: 0.56rem;
+  font-size: 0.6em;
   color: var(--muted);
   font-weight: 600;
+  line-height: 1.15;
 }
 .cv2-ring-legend {
   display: flex;
