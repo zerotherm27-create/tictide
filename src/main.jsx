@@ -574,6 +574,7 @@ function App() {
             onJournal={() => navigate("journal")}
             onTrends={() => navigate("trends")}
             onTools={() => navigate("tools")}
+            onTips={() => navigate("tips")}
             isChildMode={isChildMode}
           />
         )}
@@ -1225,99 +1226,128 @@ function HomeView(props) {
   return <ParentHomeView {...props} />;
 }
 
-function ChildHomeView(props) {
-  const latestLog = props.logs[0];
+const CHILD_CHIP_ICONS = {
+  sparkle: <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.937A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>,
+  school:  <><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></>,
+  moon:    <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/>,
+  zap:     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>,
+  monitor: <><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></>,
+  clock:   <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>,
+};
 
+function ChildChipIcon({ name }) {
   return (
-    <section className="child-home" aria-label="Child home">
-      <div className="child-start" aria-label="Quick help buttons">
-        <ChildBigCard
-          tone="coral"
-          icon={<Plus />}
-          title="I feel a tic"
-          text="Tap this during it, or right after."
-          action="Log it"
-          onClick={props.onAdd}
-        />
-        <ChildBigCard
-          tone="teal"
-          icon={<Waves />}
-          title="Help me calm"
-          text="Start breathing and ride the wave."
-          action={props.running ? "Timer on" : "Start"}
-          onClick={() => props.setRunning(true)}
-        />
-        <ChildBigCard
-          tone="green"
-          icon={<NotebookPen />}
-          title="Write how I feel"
-          text="Mood, body feeling, or one short note."
-          action="Journal"
-          onClick={props.onJournal}
-        />
-      </div>
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {CHILD_CHIP_ICONS[name]}
+    </svg>
+  );
+}
 
-      <div className="child-focus-grid">
-        <Panel className="child-calm-panel calm-panel">
-          <div className="panel-title-row">
-            <div>
-              <h2>Ride the wave</h2>
-              <p className="panel-subtitle">Breathe slowly. You do not have to fight your body.</p>
-            </div>
-            <Waves className="title-wave" aria-hidden="true" />
-          </div>
-          <div className="child-calm-layout">
-            <div className="breathing-ring child-ring" aria-label="Breathing timer" data-phase={props.breathingGuide.label.toLowerCase()}>
-              <span>{props.breathingGuide.label}</span>
-              <strong>
-                {props.breathingGuide.beat}
-              </strong>
-              <small>{props.breathingGuide.prompt}</small>
-            </div>
-            <div className="child-calm-actions">
-              <button className="primary-button large-button" type="button" onClick={() => props.setRunning((value) => !value)}>
-                <Waves size={19} /> {props.running ? "Pause breathing" : "Start 4-4-6 breathing"}
-              </button>
-              <button className="secondary-button large-button" type="button" onClick={props.onAdd}>
-                <Plus size={19} /> Save a tic
-              </button>
-            </div>
-          </div>
-          <ContextChips
-            selected={props.selectedContexts}
-            onToggle={props.toggleContext}
-            options={["Stress", "School", "Screen Time", "Tired", "Home"]}
-            prompt="pick one if you can"
-          />
-        </Panel>
+function ChildHomeView(props) {
+  return (
+    <section className="child-home-v2" aria-label="Child home">
 
-        <Panel className="child-kind-panel">
-          <div className="panel-title-row">
-            <div>
-              <h2>You are okay</h2>
-              <p className="panel-subtitle">Small notes help your parent and doctor understand patterns.</p>
-            </div>
-            <HeartPulse className="title-wave" aria-hidden="true" />
-          </div>
-          <div className="child-comfort-list">
-            <p><Check size={18} /> A tic is not your fault.</p>
-            <p><Check size={18} /> Short notes are enough.</p>
-            <p><Check size={18} /> Tell a parent if it hurts or scares you.</p>
-          </div>
-          <CbitSupportPanel isChildMode />
-          <div className="child-mini-stats">
-            <SmallStat label="Saved today" value={props.logs.length} note="Tic logs" />
-            <SmallStat label="Mood note" value={props.journalStats.commonMood} note={`${props.journals.length} journal`} />
-          </div>
-          {latestLog && (
-            <button className="child-last-log" type="button" onClick={props.onLogs}>
-              <span>Last saved</span>
-              <strong>{latestLog.ticName}</strong>
-              <em>{formatLogTime(latestLog.createdAt)}</em>
-            </button>
+      {/* Breathing ring — CBIT Relaxation hero */}
+      <div className="cv2-ring-card">
+        <span className="cv2-science-badge">CBIT Relaxation</span>
+        <div
+          className="breathing-ring cv2-ring"
+          aria-label="Breathing timer"
+          data-phase={props.breathingGuide.label.toLowerCase()}
+        >
+          <span className="cv2-ring-phase">{props.breathingGuide.label}</span>
+          <strong className="cv2-ring-count">{props.breathingGuide.beat}</strong>
+          <small className="cv2-ring-prompt">{props.breathingGuide.prompt}</small>
+        </div>
+        <div className="cv2-ring-legend">
+          <span className="cv2-legend-dot cv2-legend-teal">Inhale 4s</span>
+          <span className="cv2-legend-dot cv2-legend-gold">Hold 4s</span>
+          <span className="cv2-legend-dot cv2-legend-coral">Exhale 6s</span>
+        </div>
+        <button
+          className="cv2-start-btn"
+          type="button"
+          onClick={() => props.setRunning((v) => !v)}
+        >
+          {props.running ? (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+              <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
+            </svg>
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
           )}
-        </Panel>
+          {props.running ? "Pause breathing" : "Start 4-4-6 breathing"}
+        </button>
       </div>
+
+      {/* Access Tips card — CBIT · HRT · CBT */}
+      <button className="cv2-tips-card" type="button" onClick={() => props.onTips()}>
+        <div className="cv2-tips-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/>
+            <path d="M9 18h6"/><path d="M10 22h4"/>
+          </svg>
+        </div>
+        <div className="cv2-tips-text">
+          <strong>Access tips</strong>
+          <span>Strategies that actually help</span>
+          <div className="cv2-tips-badges">
+            <em className="cv2-mb-cbit">CBIT</em>
+            <em className="cv2-mb-hrt">HRT</em>
+            <em className="cv2-mb-cbt">CBT</em>
+          </div>
+        </div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="m9 18 6-6-6-6"/>
+        </svg>
+      </button>
+
+      {/* Context chips — CBIT functional assessment */}
+      <div className="cv2-chips-card">
+        <div className="cv2-chips-heading">
+          <span>What's happening?</span>
+          <span className="cv2-chips-hint">CBIT trigger log</span>
+        </div>
+        <div className="cv2-chip-grid">
+          {[
+            { label: "Stressed", icon: "sparkle" },
+            { label: "School",   icon: "school"   },
+            { label: "Tired",    icon: "moon"      },
+            { label: "Excited",  icon: "zap"       },
+            { label: "Screens",  icon: "monitor"   },
+            { label: "Bored",    icon: "clock"     },
+          ].map(({ label, icon }) => (
+            <button
+              key={label}
+              type="button"
+              className={`cv2-chip ${props.selectedContexts.includes(label) ? "cv2-chip-on" : "cv2-chip-off"}`}
+              onClick={() => props.toggleContext(label)}
+            >
+              <ChildChipIcon name={icon} />
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Save a tic CTA */}
+      <button className="cv2-log-cta" type="button" onClick={props.onAdd}>
+        <span className="cv2-cta-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 12h14"/><path d="M12 5v14"/>
+          </svg>
+        </span>
+        <span className="cv2-cta-text">
+          <strong>Save a tic</strong>
+          <span>tap during or right after</span>
+        </span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="m9 18 6-6-6-6"/>
+        </svg>
+      </button>
+
     </section>
   );
 }
