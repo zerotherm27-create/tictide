@@ -105,7 +105,7 @@ const defaultAccess = {
   parentPin: "",
 };
 
-const childViews = new Set(["home", "logs", "journal", "help"]);
+const childViews = new Set(["home", "logs", "journal", "help", "tips"]);
 
 const contextOptions = ["Sleep", "Stress", "School", "Screen Time", "Focus", "Home", "Tired", "Medication Day"];
 const ticOptions = ["Shoulder shrug", "Eye blink", "Throat clear", "Head movement", "Facial movement", "Sound/noise", "Custom"];
@@ -293,6 +293,24 @@ function App() {
     };
     setLogs((current) => [log, ...current]);
     setNote("");
+    setFormOpen(false);
+    setActiveView("logs");
+  }
+
+  function saveChildLog(data) {
+    const log = {
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+      ticName: data.ticName,
+      ticType: data.ticType,
+      intensity: data.intensity,
+      urge: data.hadUrge ? 7 : 0,
+      pain: data.hurt ? "Mild" : "None",
+      contexts: data.contexts,
+      note: data.note?.trim() || "No note added",
+      hadUrge: data.hadUrge,
+    };
+    setLogs((current) => [log, ...current]);
     setFormOpen(false);
     setActiveView("logs");
   }
@@ -579,6 +597,7 @@ function App() {
             note={journalNote}
             setNote={setJournalNote}
             onSubmit={addJournal}
+            isChildMode={isChildMode}
           />
         )}
         {!isChildMode && activeView === "trends" && <TrendsView stats={stats} logs={logs} ygtssScore={ygtssScore} putsScore={putsScore} />}
@@ -652,43 +671,50 @@ function App() {
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setFormOpen(false)}>
           <form className="log-form" onSubmit={addLog} onMouseDown={(event) => event.stopPropagation()} aria-label="Log a tic">
             <div className="panel-title-row">
-              <h2>Log a tic</h2>
+              <h2>{isChildMode ? "Save what happened" : "Log a tic"}</h2>
               <button className="subtle-button" type="button" onClick={() => setFormOpen(false)}>
                 Close
               </button>
             </div>
             <label>
-              Tic
+              {isChildMode ? "What kind of tic?" : "Tic"}
               <select value={ticName} onChange={(event) => setTicName(event.target.value)}>
                 {ticOptions.map((option) => (
                   <option key={option}>{option}</option>
                 ))}
               </select>
             </label>
-            <Segmented options={["Motor", "Vocal"]} value={ticType} onChange={setTicType} label="Tic type" />
+            {!isChildMode && (
+              <Segmented options={["Motor", "Vocal"]} value={ticType} onChange={setTicType} label="Tic type" />
+            )}
             <label>
-              Urge level: {urge}/10
+              {isChildMode ? `How strong was the feeling? ${urge}/10` : `Urge level: ${urge}/10`}
               <input type="range" min="1" max="10" value={urge} onChange={(event) => setUrge(event.target.value)} />
             </label>
             <label>
-              Intensity: {intensity}/10
+              {isChildMode ? `How big was the tic? ${intensity}/10` : `Intensity: ${intensity}/10`}
               <input type="range" min="1" max="10" value={intensity} onChange={(event) => setIntensity(event.target.value)} />
             </label>
             <label>
-              Pain or discomfort
+              {isChildMode ? "Did it hurt?" : "Pain or discomfort"}
               <select value={pain} onChange={(event) => setPain(event.target.value)}>
                 {["None", "Mild", "Moderate", "Severe"].map((option) => (
                   <option key={option}>{option}</option>
                 ))}
               </select>
             </label>
-            <ContextChips selected={selectedContexts} onToggle={toggleContext} />
+            <ContextChips
+              selected={selectedContexts}
+              onToggle={toggleContext}
+              options={isChildMode ? ["Stress", "School", "Screen Time", "Tired", "Home"] : contextOptions}
+              prompt={isChildMode ? "what was happening?" : "what's happening right now?"}
+            />
             <label>
-              Note
-              <textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="What happened before, during, or after?" />
+              {isChildMode ? "One short note (or skip it)" : "Note"}
+              <textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder={isChildMode ? "One word or one sentence is enough." : "What happened before, during, or after?"} />
             </label>
             <button className="primary-button" type="submit">
-              <Check size={18} /> Save log
+              <Check size={18} /> {isChildMode ? "Save it" : "Save log"}
             </button>
           </form>
         </div>
@@ -1064,31 +1090,98 @@ function PasswordRecoveryModal({ password, confirmPassword, busy, message, onPas
   );
 }
 
+function PinPad({ value, onChange, maxLength = 6 }) {
+  function press(digit) {
+    if (value.length < maxLength) onChange(value + digit);
+  }
+  function backspace() {
+    onChange(value.slice(0, -1));
+  }
+  const dots = Array.from({ length: maxLength }).map((_, index) => (
+    <span key={index} className={`pin-dot ${index < value.length ? "filled" : ""}`} />
+  ));
+  return (
+    <div className="pin-pad">
+      <div className="pin-dots" aria-label={`${value.length} digits entered`}>{dots}</div>
+      <div className="pin-grid">
+        {["1","2","3","4","5","6","7","8","9","","0","⌫"].map((key) => (
+          key === "" ? (
+            <span key="empty" />
+          ) : key === "⌫" ? (
+            <button key="back" type="button" className="pin-key back" onClick={backspace} aria-label="Delete">
+              {key}
+            </button>
+          ) : (
+            <button key={key} type="button" className="pin-key" onClick={() => press(key)}>
+              {key}
+            </button>
+          )
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ChildUnlockView({ profile, access, onUnlockChild, onUnlockParent }) {
   const [code, setCode] = useState("");
   const [parentPin, setParentPin] = useState("");
-  const [message, setMessage] = useState("Enter child code to start.");
+  const [showParent, setShowParent] = useState(false);
+  const [message, setMessage] = useState("");
 
-  function unlockChild(event) {
-    event.preventDefault();
+  function unlockChild() {
     if (code.trim() === String(access.childCode || "").trim()) {
       setCode("");
-      setMessage("Child Mode unlocked.");
       onUnlockChild();
       return;
     }
-    setMessage("Child code did not match.");
+    setMessage("That code didn't work. Try again.");
+    setCode("");
   }
 
-  function unlockParent(event) {
-    event.preventDefault();
+  function unlockParent() {
     if (parentPin.trim() === String(access.parentPin || "").trim()) {
       setParentPin("");
-      setMessage("Parent Mode unlocked.");
       onUnlockParent();
       return;
     }
-    setMessage("Parent PIN did not match.");
+    setMessage("Parent PIN didn't match.");
+    setParentPin("");
+  }
+
+  const maxLen = Math.max(
+    String(access.childCode || "").length,
+    String(access.parentPin || "").length,
+    4,
+  );
+
+  function handleCodeChange(value) {
+    setCode(value);
+    setMessage("");
+    if (value.length === maxLen) {
+      setTimeout(() => {
+        if (value.trim() === String(access.childCode || "").trim()) {
+          onUnlockChild();
+        } else {
+          setMessage("That code didn't work. Try again.");
+          setCode("");
+        }
+      }, 120);
+    }
+  }
+
+  function handlePinChange(value) {
+    setParentPin(value);
+    setMessage("");
+    if (value.length === maxLen) {
+      setTimeout(() => {
+        if (value.trim() === String(access.parentPin || "").trim()) {
+          onUnlockParent();
+        } else {
+          setMessage("Parent PIN didn't match.");
+          setParentPin("");
+        }
+      }, 120);
+    }
   }
 
   return (
@@ -1104,41 +1197,26 @@ function ChildUnlockView({ profile, access, onUnlockChild, onUnlockParent }) {
             <p>Quick logging, journaling, and calm support. Parent tools stay locked.</p>
           </div>
         </div>
-        <div className="access-grid">
-          <form className="access-form" onSubmit={unlockChild}>
-            <h2>Child access</h2>
-            <label>
-              Child code
-              <input
-                value={code}
-                onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                placeholder="Enter code"
-              />
-            </label>
-            <button className="primary-button" type="submit">
-              <KeyRound size={17} /> Start Child Mode
+
+        {!showParent ? (
+          <div className="pin-section">
+            <h2>Enter your code</h2>
+            <PinPad value={code} onChange={handleCodeChange} maxLength={maxLen} />
+            {message && <p className="sync-message">{message}</p>}
+            <button className="subtle-button" type="button" onClick={() => { setShowParent(true); setCode(""); setMessage(""); }}>
+              <LockKeyhole size={15} /> Parent unlock
             </button>
-          </form>
-          <form className="access-form parent-unlock" onSubmit={unlockParent}>
-            <h2>Parent unlock</h2>
-            <label>
-              Parent PIN
-              <input
-                value={parentPin}
-                onChange={(event) => setParentPin(event.target.value.replace(/\D/g, "").slice(0, 6))}
-                inputMode="numeric"
-                type="password"
-                placeholder="Parent PIN"
-              />
-            </label>
-            <button className="secondary-button" type="submit">
-              <LockKeyhole size={17} /> Parent Mode
+          </div>
+        ) : (
+          <div className="pin-section">
+            <h2>Parent PIN</h2>
+            <PinPad value={parentPin} onChange={handlePinChange} maxLength={maxLen} />
+            {message && <p className="sync-message">{message}</p>}
+            <button className="subtle-button" type="button" onClick={() => { setShowParent(false); setParentPin(""); setMessage(""); }}>
+              Back to child code
             </button>
-          </form>
-        </div>
-        <p className="sync-message">{message}</p>
+          </div>
+        )}
       </section>
     </main>
   );
@@ -1194,7 +1272,7 @@ function ChildHomeView(props) {
             <Waves className="title-wave" aria-hidden="true" />
           </div>
           <div className="child-calm-layout">
-            <div className="breathing-ring child-ring" aria-label="Breathing timer">
+            <div className="breathing-ring child-ring" aria-label="Breathing timer" data-phase={props.breathingGuide.label.toLowerCase()}>
               <span>{props.breathingGuide.label}</span>
               <strong>
                 {props.breathingGuide.beat}
@@ -1272,7 +1350,7 @@ function ParentHomeView(props) {
             <Waves className="title-wave" aria-hidden="true" />
           </div>
           <div className="calm-layout">
-            <div className="breathing-ring" aria-label="Breathing timer">
+            <div className="breathing-ring" aria-label="Breathing timer" data-phase={props.breathingGuide.label.toLowerCase()}>
               <span>{props.breathingGuide.label}</span>
               <strong>
                 {props.breathingGuide.beat}
@@ -1320,6 +1398,14 @@ function ParentHomeView(props) {
   );
 }
 
+const moodEmojis = {
+  Calm: "😊",
+  Okay: "🙂",
+  Stressed: "😟",
+  Tired: "😴",
+  Frustrated: "😤",
+};
+
 function JournalView(props) {
   return (
     <section className="view-stack">
@@ -1327,27 +1413,44 @@ function JournalView(props) {
         <Panel>
           <div className="panel-title-row">
             <div>
-              <h2>Two-minute journal</h2>
-              <p className="panel-subtitle">A short check-in for mood, urge, body feeling, and what helped.</p>
+              <h2>{props.isChildMode ? "How are you feeling?" : "Two-minute journal"}</h2>
+              <p className="panel-subtitle">{props.isChildMode ? "Tap your mood, then fill in what you can." : "A short check-in for mood, urge, body feeling, and what helped."}</p>
             </div>
             <PenLine className="title-wave" />
           </div>
           <form className="journal-form" onSubmit={props.onSubmit}>
-            <label>
-              Mood
-              <Segmented options={moodOptions} value={props.mood} onChange={props.setMood} label="Mood" />
-            </label>
+            {props.isChildMode ? (
+              <div className="emoji-mood-row" role="group" aria-label="Mood">
+                {moodOptions.map((mood) => (
+                  <button
+                    key={mood}
+                    type="button"
+                    className={`emoji-mood-btn ${props.mood === mood ? "selected" : ""}`}
+                    onClick={() => props.setMood(mood)}
+                    aria-pressed={props.mood === mood}
+                  >
+                    <span>{moodEmojis[mood]}</span>
+                    <em>{mood}</em>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <label>
+                Mood
+                <Segmented options={moodOptions} value={props.mood} onChange={props.setMood} label="Mood" />
+              </label>
+            )}
             <label className="range-label">
-              <span>Urge before tic <b>{props.urge}/10</b></span>
+              <span>{props.isChildMode ? <>How strong was the feeling before? <b>{props.urge}/10</b></> : <>Urge before tic <b>{props.urge}/10</b></>}</span>
               <input type="range" min="1" max="10" value={props.urge} onChange={(event) => props.setUrge(event.target.value)} />
             </label>
             <label className="range-label">
-              <span>Tic pressure <b>{props.pressure}/10</b></span>
+              <span>{props.isChildMode ? <>How much pressure did you feel? <b>{props.pressure}/10</b></> : <>Tic pressure <b>{props.pressure}/10</b></>}</span>
               <input type="range" min="1" max="10" value={props.pressure} onChange={(event) => props.setPressure(event.target.value)} />
             </label>
             <div className="form-grid compact">
               <label>
-                Body feeling
+                {props.isChildMode ? "Where did you feel it?" : "Body feeling"}
                 <select value={props.bodyFeeling} onChange={(event) => props.setBodyFeeling(event.target.value)}>
                   {bodyFeelingOptions.map((option) => (
                     <option key={option}>{option}</option>
@@ -1355,7 +1458,7 @@ function JournalView(props) {
                 </select>
               </label>
               <label>
-                What helped
+                {props.isChildMode ? "What helped a little?" : "What helped"}
                 <select value={props.helped} onChange={(event) => props.setHelped(event.target.value)}>
                   {helpedOptions.map((option) => (
                     <option key={option}>{option}</option>
@@ -1364,15 +1467,15 @@ function JournalView(props) {
               </label>
             </div>
             <label>
-              What was happening?
-              <input value={props.trigger} onChange={(event) => props.setTrigger(event.target.value)} placeholder="School, screen time, tired, excited, worried..." />
+              {props.isChildMode ? "What was going on?" : "What was happening?"}
+              <input value={props.trigger} onChange={(event) => props.setTrigger(event.target.value)} placeholder={props.isChildMode ? "School, tired, worried, excited..." : "School, screen time, tired, excited, worried..."} />
             </label>
             <label>
-              My note
+              {props.isChildMode ? "Anything else? (you can skip this)" : "My note"}
               <textarea value={props.note} onChange={(event) => props.setNote(event.target.value)} placeholder="One sentence is enough." />
             </label>
             <button className="primary-button" type="submit">
-              <Check size={18} /> Save journal
+              <Check size={18} /> {props.isChildMode ? "Save my check-in" : "Save journal"}
             </button>
           </form>
         </Panel>
@@ -2544,7 +2647,7 @@ function friendlyAuthError(error, context = "sign-in") {
 
 function getBreathingGuide(seconds) {
   const cycle = 14;
-  const elapsed = (272 - seconds + 272 * 10) % cycle;
+  const elapsed = (272 - seconds + 2730) % cycle;
 
   if (elapsed < 4) {
     return {
