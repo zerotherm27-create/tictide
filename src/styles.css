@@ -1762,6 +1762,287 @@ button:disabled {
 .ctv-try-cbt  { background: #e5f7ef; color: #1e5c3a; border-left: 3px solid #4aaf83; }
 .ctv-try-cbit { background: var(--teal-soft); color: var(--teal-dark); border-left: 3px solid var(--teal); }
 
+/* ─── YGTSS WEEKLY BANNER ─── */
+.ygtss-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  background: var(--teal-soft);
+  border-left: 4px solid var(--teal);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+.ygtss-banner-body {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--teal-dark);
+  flex: 1;
+  min-width: 0;
+}
+.ygtss-banner-body strong {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+.ygtss-banner-body span {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.ygtss-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+.ygtss-banner-cta {
+  background: var(--teal);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ygtss-banner-cta:hover { background: var(--teal-dark); }
+.ygtss-banner-dismiss {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0.25rem;
+  line-height: 1;
+}
+
+/* ─── YGTSS CHECK-IN MODAL ─── */
+.ycm-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 0 1.25rem 1.5rem;
+  overflow-y: auto;
+}
+.ycm-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.ycm-head h2 {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--teal-dark);
+  margin: 0;
+  flex: 1;
+}
+.ycm-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: var(--teal-soft);
+  color: var(--teal-dark);
+  border: 1px solid var(--teal);
+  border-radius: 6px;
+  padding: 0.15rem 0.45rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.ycm-no-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+.ycm-dim-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.ycm-dim-label {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+.ycm-dim-label strong {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.ycm-dim-label span {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.ycm-pills {
+  display: flex;
+  gap: 0.35rem;
+}
+.ycm-pill {
+  width: 42px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1.5px solid var(--faint);
+  background: #fff;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.ycm-pill-sel {
+  background: var(--teal);
+  color: #fff;
+  border-color: var(--teal);
+}
+.ycm-screen-sub {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0;
+}
+.ycm-imp-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+.ycm-imp-btn {
+  padding: 0.55rem 0.4rem;
+  border-radius: 10px;
+  border: 1.5px solid var(--faint);
+  background: #fff;
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.ycm-imp-sel {
+  background: var(--teal-soft);
+  border-color: var(--teal);
+  color: var(--teal-dark);
+}
+.ycm-score-preview {
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-align: center;
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 0.45rem;
+}
+.ycm-note {
+  width: 100%;
+  border: 1.5px solid var(--faint);
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.88rem;
+  font-family: inherit;
+  color: var(--ink);
+  resize: none;
+  box-sizing: border-box;
+}
+.ycm-note:focus { outline: none; border-color: var(--teal); }
+
+/* ─── YGTSS HISTORY PANEL ─── */
+.yh-empty {
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-align: center;
+  padding: 1rem 0;
+}
+.yh-row {
+  border-top: 1px solid var(--faint);
+}
+.yh-row:first-of-type { border-top: none; }
+.yh-row-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  gap: 0.5rem;
+}
+.yh-row-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+}
+.yh-range {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.yh-this-week {
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #d1fae5;
+  color: #065f46;
+  border-radius: 5px;
+  padding: 0.1rem 0.4rem;
+  white-space: nowrap;
+}
+.yh-row-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+.yh-tts {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--teal-dark);
+}
+.yh-imp {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.yh-chevron { color: var(--muted); transition: transform 0.2s; }
+.yh-chevron-open { transform: rotate(180deg); }
+.yh-detail {
+  padding: 0.5rem 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.yh-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+.yh-detail-grid h4 {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--teal-dark);
+  margin: 0 0 0.3rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.yh-dim-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--ink);
+  padding: 0.15rem 0;
+}
+.yh-dim-line span:last-child { font-weight: 600; color: var(--teal-dark); }
+.yh-note {
+  font-size: 0.82rem;
+  font-style: italic;
+  color: var(--muted);
+  margin: 0;
+  padding: 0.5rem;
+  background: var(--surface);
+  border-radius: 8px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     scroll-behavior: auto !important;
