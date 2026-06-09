@@ -1186,6 +1186,242 @@ button:disabled {
   font-weight: 800;
 }
 
+/* ══════════════════════════════════════
+   CHILD MODE V2 — HOME SCREEN
+══════════════════════════════════════ */
+.child-home-v2 {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px 0;
+  flex: 1;
+}
+
+/* Ring card */
+.cv2-ring-card {
+  background: var(--surface);
+  border-radius: 20px;
+  padding: 16px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 11px;
+  box-shadow: 0 3px 18px rgba(8,119,125,0.08);
+  position: relative;
+}
+.cv2-science-badge {
+  position: absolute;
+  top: 9px; right: 10px;
+  background: var(--teal-soft);
+  border-radius: 8px;
+  padding: 2px 7px;
+  font-size: 0.58rem;
+  font-weight: 800;
+  color: var(--teal-dark);
+  letter-spacing: 0.3px;
+}
+/* Use .breathing-ring.cv2-ring to beat the existing .breathing-ring span (0,1,1) selector */
+.breathing-ring.cv2-ring {
+  width: 148px !important;
+  height: 148px !important;
+}
+.breathing-ring.cv2-ring span {    /* cv2-ring-phase */
+  font-size: 0.57rem;
+  font-weight: 900;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1.8px;
+  display: block;
+}
+.breathing-ring.cv2-ring strong {  /* cv2-ring-count */
+  font-size: 2.6rem;
+  font-weight: 900;
+  color: var(--teal-dark);
+  line-height: 1;
+  letter-spacing: -2px;
+  margin: 0;
+}
+.breathing-ring.cv2-ring small {   /* cv2-ring-prompt */
+  font-size: 0.56rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+.cv2-ring-legend {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.cv2-legend-dot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.cv2-legend-dot::before {
+  content: '';
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.cv2-legend-teal::before  { background: var(--teal); }
+.cv2-legend-gold::before  { background: var(--gold); }
+.cv2-legend-coral::before { background: var(--coral); }
+.cv2-start-btn {
+  width: 100%;
+  height: 44px;
+  background: var(--teal);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+/* Access Tips card */
+.cv2-tips-card {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  background: #f0ecfb;
+  border: 1.5px solid rgba(124,92,191,0.18);
+  border-radius: 14px;
+  padding: 11px 13px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+.cv2-tips-icon {
+  width: 36px; height: 36px;
+  background: #7c5cbf;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  color: white;
+  flex-shrink: 0;
+}
+.cv2-tips-text {
+  flex: 1;
+  min-width: 0;
+}
+.cv2-tips-text strong {
+  display: block;
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: #3d1d8a;
+  margin-bottom: 1px;
+}
+.cv2-tips-text span {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #8b76c0;
+  margin-bottom: 4px;
+}
+.cv2-tips-badges {
+  display: flex;
+  gap: 4px;
+}
+.cv2-tips-badges em {
+  font-style: normal;
+  font-size: 0.56rem;
+  font-weight: 800;
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+.cv2-mb-cbit { background: var(--teal-soft); color: var(--teal-dark); }
+.cv2-mb-hrt  { background: #fef3d0; color: #7a4e00; }
+.cv2-mb-cbt  { background: #e5f7ef; color: #1e5c3a; }
+
+/* Context chips */
+.cv2-chips-card {
+  background: rgba(255,255,255,0.82);
+  border-radius: 16px;
+  padding: 10px 11px 9px;
+}
+.cv2-chips-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.cv2-chips-heading span:first-child {
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+.cv2-chips-hint {
+  font-size: 0.57rem;
+  color: #9dbab8;
+  font-weight: 600;
+}
+.cv2-chip-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.cv2-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 36px;
+  padding: 0 8px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border: 1.5px solid;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, border-color 0.12s;
+}
+.cv2-chip-on  { background: var(--teal); border-color: var(--teal); color: white; }
+.cv2-chip-off { background: white; border-color: var(--faint); color: var(--teal-dark); }
+
+/* Save a tic CTA */
+.cv2-log-cta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--coral);
+  border-radius: 16px;
+  padding: 13px 14px;
+  box-shadow: 0 7px 20px rgba(233,111,91,0.28);
+  cursor: pointer;
+  color: white;
+  border: none;
+  width: 100%;
+  text-align: left;
+}
+.cv2-cta-icon {
+  width: 40px; height: 40px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.cv2-cta-text { flex: 1; }
+.cv2-cta-text strong {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+.cv2-cta-text span {
+  font-size: 0.65rem;
+  font-weight: 600;
+  opacity: 0.82;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     scroll-behavior: auto !important;
