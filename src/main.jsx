@@ -3400,9 +3400,19 @@ function getBreathingGuide(seconds) {
   };
 }
 
+const PRODUCTION_ORIGIN = "https://tictide.vercel.app";
+
+function passwordResetRedirect() {
+  const origin = window.location.origin;
+  // Never send a reset link that points at a local dev server — the recipient
+  // opens it on another device where localhost means nothing. Force production.
+  const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])/i.test(origin);
+  return isLocal ? PRODUCTION_ORIGIN : origin;
+}
+
 async function requestPasswordReset(email) {
   if (!supabase) return "Family Sync is not connected on this build yet.";
-  const redirectTo = `${window.location.origin}${window.location.pathname}`;
+  const redirectTo = passwordResetRedirect();
   const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
   if (error) {
     return `Could not send reset email: ${error.message}`;
