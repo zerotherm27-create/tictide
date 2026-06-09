@@ -641,6 +641,9 @@ function App() {
             onApplyCloudData={applyCloudData}
           />
         )}
+        {isChildMode && activeView === "tips" && (
+          <ChildTipsView onBack={() => navigate("home")} />
+        )}
         {activeView === "help" && (
           <HelpView
             isChildMode={isChildMode}
@@ -1612,6 +1615,109 @@ function ChildLogForm({ defaultContexts = [], onSave, onClose }) {
 
       </div>
     </div>
+  );
+}
+
+const TIPS = [
+  {
+    id: "awareness",
+    heading: "Notice the warning feeling",
+    approach: "HRT — Awareness Training",
+    badgeClass: "ctv-badge-hrt",
+    iconClass: "ctv-icon-hrt",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M5.636 5.636a9 9 0 1 0 12.728 12.728"/>
+        <path d="M16.243 7.757a6 6 0 1 0-8.486 8.486"/>
+        <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/>
+      </svg>
+    ),
+    body: "Most tics start with a body sensation — a tingle, pressure, or tightness. This is called a premonitory urge. Learning to spot it is the first step to managing tics.",
+    tryText: "Next time, pause and notice — where do you feel it? Your shoulder? Your throat?",
+    tryClass: "ctv-try-hrt",
+  },
+  {
+    id: "competing",
+    heading: "Try a competing response",
+    approach: "HRT — Competing Response",
+    badgeClass: "ctv-badge-hrt",
+    iconClass: "ctv-icon-hrt",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m17 2 4 4-4 4"/>
+        <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+        <path d="m7 22-4-4 4-4"/>
+        <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+      </svg>
+    ),
+    body: "When you feel the urge, do something that makes the tic hard to do at the same time. Hold it for about 1 minute, or until the urge fades.",
+    tryText: "Shoulder shrug urge? Press your elbows to your sides. Head jerk? Tuck your chin slightly. Eye blink? Slow-blink once, softly.",
+    tryClass: "ctv-try-hrt",
+  },
+  {
+    id: "urge-wave",
+    heading: "Ride the urge wave",
+    approach: "CBT — Exposure & Response Prevention",
+    badgeClass: "ctv-badge-cbt",
+    iconClass: "ctv-icon-cbt",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>
+        <path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>
+        <path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>
+      </svg>
+    ),
+    body: "Urges always go away on their own — like waves. You don't have to fight the tic or force it. Just notice the urge and breathe until it fades.",
+    tryText: "Breathe slowly and count to 10. Most urges peak within 20–30 seconds and then drop.",
+    tryClass: "ctv-try-cbt",
+  },
+  {
+    id: "breathe",
+    heading: "Breathe to calm down",
+    approach: "CBIT — Relaxation Training",
+    badgeClass: "ctv-badge-cbit",
+    iconClass: "ctv-icon-cbit",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>
+        <path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>
+      </svg>
+    ),
+    body: "When you're stressed, tics often get stronger. Slow breathing (4 in, 4 hold, 6 out) activates your parasympathetic nervous system — your body's natural calm-down switch.",
+    tryText: "Use the breathing ring on the home screen. Even one full cycle (14 seconds) helps.",
+    tryClass: "ctv-try-cbit",
+  },
+];
+
+function ChildTipsView({ onBack }) {
+  return (
+    <section className="ctv-view" aria-label="Tips that help">
+      <div className="ctv-topbar">
+        <button className="ctv-back" type="button" onClick={onBack}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          Back
+        </button>
+        <div className="ctv-title">Tips that help</div>
+        <div className="ctv-subtitle">Based on what science says works for tics</div>
+      </div>
+      <div className="ctv-body">
+        {TIPS.map((tip) => (
+          <div key={tip.id} className="ctv-card">
+            <div className="ctv-card-header">
+              <div className={`ctv-icon ${tip.iconClass}`}>{tip.icon}</div>
+              <div>
+                <div className="ctv-heading">{tip.heading}</div>
+                <div className={`ctv-badge ${tip.badgeClass}`}>{tip.approach}</div>
+              </div>
+            </div>
+            <p className="ctv-body-text">{tip.body}</p>
+            <div className={`ctv-try ${tip.tryClass}`}>
+              <strong>Try:</strong> {tip.tryText}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

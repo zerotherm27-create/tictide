@@ -1652,6 +1652,116 @@ button:disabled {
   align-self: center;
 }
 
+/* ══════════════════════════════════════
+   CHILD TIPS VIEW
+══════════════════════════════════════ */
+.ctv-view {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  background: linear-gradient(180deg, #f8f5fc 0%, #f2eef9 100%);
+}
+.ctv-topbar {
+  padding: 14px 16px 10px;
+  background: rgba(248,245,252,0.9);
+  border-bottom: 1px solid rgba(124,92,191,0.1);
+  position: sticky;
+  top: 0;
+  backdrop-filter: blur(12px);
+}
+.ctv-back {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: #7c5cbf;
+  font-size: 0.78rem;
+  font-weight: 800;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 6px;
+}
+.ctv-title {
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: #3d1d8a;
+  letter-spacing: -0.4px;
+}
+.ctv-subtitle {
+  font-size: 0.68rem;
+  color: #8b76c0;
+  font-weight: 600;
+  margin-top: 2px;
+}
+.ctv-body {
+  flex: 1;
+  padding: 12px 14px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ctv-card {
+  background: white;
+  border-radius: 16px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 2px 12px rgba(124,92,191,0.08);
+}
+.ctv-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.ctv-icon {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.ctv-icon svg { width: 19px; height: 19px; }
+.ctv-icon-hrt  { background: #fef3d0; color: #8a5e00; }
+.ctv-icon-cbt  { background: #e5f7ef; color: #1e5c3a; }
+.ctv-icon-cbit { background: var(--teal-soft); color: var(--teal-dark); }
+.ctv-heading {
+  font-size: 0.86rem;
+  font-weight: 900;
+  color: var(--ink);
+  line-height: 1.2;
+}
+.ctv-badge {
+  display: inline-block;
+  font-size: 0.56rem;
+  font-weight: 900;
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-top: 3px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+.ctv-badge-hrt  { background: #fef3d0; color: #7a4e00; }
+.ctv-badge-cbt  { background: #e5f7ef; color: #1e5c3a; }
+.ctv-badge-cbit { background: var(--teal-soft); color: var(--teal-dark); }
+.ctv-body-text {
+  font-size: 0.75rem;
+  color: var(--muted);
+  line-height: 1.55;
+  font-weight: 500;
+}
+.ctv-try {
+  border-radius: 8px;
+  padding: 8px 11px;
+  font-size: 0.71rem;
+  line-height: 1.45;
+  font-weight: 500;
+}
+.ctv-try strong { font-weight: 800; }
+.ctv-try-hrt  { background: #fef3d0; color: #7a4e00; border-left: 3px solid #dba437; }
+.ctv-try-cbt  { background: #e5f7ef; color: #1e5c3a; border-left: 3px solid #4aaf83; }
+.ctv-try-cbit { background: var(--teal-soft); color: var(--teal-dark); border-left: 3px solid var(--teal); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     scroll-behavior: auto !important;
