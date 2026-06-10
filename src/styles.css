@@ -602,15 +602,24 @@ textarea { min-height: 92px; padding: 12px; resize: vertical; }
 .flag {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 40px;
-  padding: 8px 10px;
+  gap: 10px;
+  min-height: 54px;
+  padding: 8px 12px;
   border: 1px solid var(--faint);
   border-radius: 8px;
   color: var(--muted);
   background: var(--surface-soft);
-  font-size: 0.88rem;
+  font-size: 0.86rem;
   font-weight: 750;
+  line-height: 1.25;
+  cursor: pointer;
+}
+.flag input {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--danger);
 }
 .flag.checked { color: var(--danger); border-color: rgba(198,71,71,0.28); background: #fff0f0; }
 .report-box {
