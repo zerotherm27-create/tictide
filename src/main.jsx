@@ -1198,18 +1198,20 @@ function ChildUnlockView({ profile, access, onUnlockChild, onUnlockParent }) {
     setParentPin("");
   }
 
-  const maxLen = Math.max(
-    String(access.childCode || "").length,
-    String(access.parentPin || "").length,
-    4,
-  );
+  // Each pad auto-checks at the length of ITS OWN stored code. Using a shared
+  // max length broke unlocking whenever the two codes had different lengths:
+  // the shorter code never reached the check, so it could never unlock.
+  const storedChildCode = String(access.childCode || "").trim();
+  const storedParentPin = String(access.parentPin || "").trim();
+  const childLen = Math.max(storedChildCode.length, 4);
+  const parentLen = Math.max(storedParentPin.length, 4);
 
   function handleCodeChange(value) {
     setCode(value);
     setMessage("");
-    if (value.length === maxLen) {
+    if (value.length === childLen) {
       setTimeout(() => {
-        if (value.trim() === String(access.childCode || "").trim()) {
+        if (value.trim() === storedChildCode) {
           onUnlockChild();
         } else {
           setMessage("That code didn't work. Try again.");
@@ -1222,9 +1224,9 @@ function ChildUnlockView({ profile, access, onUnlockChild, onUnlockParent }) {
   function handlePinChange(value) {
     setParentPin(value);
     setMessage("");
-    if (value.length === maxLen) {
+    if (value.length === parentLen) {
       setTimeout(() => {
-        if (value.trim() === String(access.parentPin || "").trim()) {
+        if (value.trim() === storedParentPin) {
           onUnlockParent();
         } else {
           setMessage("Parent PIN didn't match.");
@@ -1251,7 +1253,7 @@ function ChildUnlockView({ profile, access, onUnlockChild, onUnlockParent }) {
         {!showParent ? (
           <div className="pin-section">
             <h2>Enter your code</h2>
-            <PinPad value={code} onChange={handleCodeChange} maxLength={maxLen} />
+            <PinPad value={code} onChange={handleCodeChange} maxLength={childLen} />
             {message && <p className="sync-message">{message}</p>}
             <button className="subtle-button" type="button" onClick={() => { setShowParent(true); setCode(""); setMessage(""); }}>
               <LockKeyhole size={15} /> Parent unlock
@@ -1260,7 +1262,7 @@ function ChildUnlockView({ profile, access, onUnlockChild, onUnlockParent }) {
         ) : (
           <div className="pin-section">
             <h2>Parent PIN</h2>
-            <PinPad value={parentPin} onChange={handlePinChange} maxLength={maxLen} />
+            <PinPad value={parentPin} onChange={handlePinChange} maxLength={parentLen} />
             {message && <p className="sync-message">{message}</p>}
             <button className="subtle-button" type="button" onClick={() => { setShowParent(false); setParentPin(""); setMessage(""); }}>
               Back to child code
@@ -2641,7 +2643,12 @@ function AccountSyncView({
     const credentials = { email, password };
     const result =
       mode === "Create"
-        ? await supabase.auth.signUp(credentials)
+        ? await supabase.auth.signUp({
+            ...credentials,
+            // Confirmation emails default to the Supabase Site URL (currently
+            // localhost) — point them at the real app instead.
+            options: { emailRedirectTo: passwordResetRedirect() },
+          })
         : await supabase.auth.signInWithPassword(credentials);
     setBusy(false);
     if (result.error) {
@@ -3095,11 +3102,11 @@ function SettingsView({ access, setAccess, onEnterChildMode }) {
         <div className="form-grid compact">
           <label>
             Child access code
-            <input value={access.childCode || ""} onChange={(event) => updateAccess("childCode", event.target.value)} inputMode="numeric" />
+            <input value={access.childCode || ""} onChange={(event) => updateAccess("childCode", event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" />
           </label>
           <label>
             Parent unlock PIN
-            <input value={access.parentPin || ""} onChange={(event) => updateAccess("parentPin", event.target.value)} inputMode="numeric" type="password" />
+            <input value={access.parentPin || ""} onChange={(event) => updateAccess("parentPin", event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" type="password" />
           </label>
         </div>
       </Panel>
