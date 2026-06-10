@@ -1,4 +1,4 @@
-const CACHE_NAME = "tictide-v5";
+const CACHE_NAME = "tictide-v6";
 const APP_SHELL = [
   "/",
   "/index.html",
