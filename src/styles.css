@@ -1202,6 +1202,28 @@ button:disabled {
   font-weight: 800;
 }
 
+/* ── Child mode grid overrides ─────────────────────────────────────────────
+   The child shell is max 480px but the viewport may be > 920px, so the
+   generic <920px breakpoint never fires. Force every two-column grid that
+   uses minmax(320px+, fr) to single-column inside the child shell.
+   ────────────────────────────────────────────────────────────────────────── */
+.app-shell.child-mode .journal-grid,
+.app-shell.child-mode .home-grid,
+.app-shell.child-mode .tools-grid,
+.app-shell.child-mode .help-hero,
+.app-shell.child-mode .sync-grid,
+.app-shell.child-mode .assessment-grid {
+  grid-template-columns: 1fr;
+}
+
+/* Range-label text in child mode: keep sentence-case, drop uppercase shout */
+.app-shell.child-mode .range-label span {
+  text-transform: none;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
 /* ══════════════════════════════════════
    CHILD MODE V2 — HOME SCREEN
 ══════════════════════════════════════ */
