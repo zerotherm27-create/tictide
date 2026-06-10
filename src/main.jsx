@@ -572,8 +572,8 @@ function App() {
                 <button className="icon-button" aria-label="Account" onClick={() => navigate("account")}>
                   <UserRound size={19} />
                 </button>
-                <button className="icon-button" aria-label="Notifications">
-                  <Bell size={19} />
+                <button className="icon-button" aria-label="Settings" onClick={() => navigate("settings")}>
+                  <Settings size={19} />
                 </button>
               </>
             )}
