@@ -37,6 +37,7 @@ import Smartphone from "lucide-react/dist/esm/icons/smartphone.js";
 import Sparkles from "lucide-react/dist/esm/icons/sparkles.js";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope.js";
 import SunMedium from "lucide-react/dist/esm/icons/sun-medium.js";
+import Trash2 from "lucide-react/dist/esm/icons/trash-2.js";
 import UserRound from "lucide-react/dist/esm/icons/user-round.js";
 import Waves from "lucide-react/dist/esm/icons/waves.js";
 import { isSupabaseConfigured, supabase } from "./supabaseClient.js";
@@ -2888,7 +2889,39 @@ function AccountSyncView({
           <SmallStat label="Care profile" value={profile.childName || "Child"} note="Ready to sync" />
         </div>
       </Panel>
+
+      <ResetDevicePanel />
     </section>
+  );
+}
+
+function ResetDevicePanel() {
+  const [confirming, setConfirming] = useState(false);
+  return (
+    <Panel>
+      <div className="panel-title-row">
+        <div>
+          <h2>Reset this device</h2>
+          <p className="panel-subtitle">Wipes all logs, journals, profile, and cached data from this device. Cannot be undone.</p>
+        </div>
+        <Trash2 className="title-wave" style={{ color: "var(--danger)" }} />
+      </div>
+      {!confirming ? (
+        <button className="danger-button" type="button" onClick={() => setConfirming(true)}>
+          <Trash2 size={17} /> Reset and delete all data
+        </button>
+      ) : (
+        <div className="reset-confirm">
+          <p className="reset-confirm-msg">All logs, journals, YGTSS history, profile, and settings on this device will be permanently deleted.</p>
+          <div className="button-cluster">
+            <button className="secondary-button" type="button" onClick={() => setConfirming(false)}>Cancel</button>
+            <button className="danger-button" type="button" onClick={() => window.__tictideFullReset && window.__tictideFullReset()}>
+              <Trash2 size={17} /> Yes, delete everything
+            </button>
+          </div>
+        </div>
+      )}
+    </Panel>
   );
 }
 

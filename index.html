@@ -25,7 +25,16 @@
         var booted = false;
         window.__tictideBooted = function () { booted = true; };
 
-        function resetApp() {
+        var TICTIDE_STORAGE_KEYS = [
+          "tictide.logs.v2", "tictide.journals.v1", "tictide.ygtss.v1",
+          "tictide.puts.v1", "tictide.meds.v1", "tictide.profile.v1",
+          "tictide.redflags.v1", "tictide.access.v1", "tictide.appMode.v1"
+        ];
+
+        function resetApp(wipeData) {
+          if (wipeData) {
+            try { TICTIDE_STORAGE_KEYS.forEach(function(k) { localStorage.removeItem(k); }); } catch(e) {}
+          }
           var done = 0, total = 2;
           function maybeReload() { if (++done >= total) location.reload(true); }
           if ("serviceWorker" in navigator) {
@@ -39,6 +48,7 @@
           } else { maybeReload(); }
         }
         window.__tictideReset = resetApp;
+        window.__tictideFullReset = function() { resetApp(true); };
 
         function showPanel(title, detail) {
           var root = document.getElementById("root");
