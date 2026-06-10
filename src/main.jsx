@@ -483,7 +483,9 @@ function App() {
     setAccess(localAccess);
     setSelectedContexts([]);
     setTicName("Custom");
-    setAppMode("child-lock");
+    // The person who just typed the parent password is the parent — land
+    // them in the full parent view. Child mode is one tap away in Settings.
+    setAppMode("parent");
     setActiveView("home");
   }
 
@@ -862,13 +864,34 @@ function SetupView({ profile, onRestore, installPrompt, isInstalled, updateReady
         return;
       }
 
-      const cloudData = await loadFamilySyncData({
-        profile,
-        ygtss: defaultYgtss,
-        puts: defaultPuts,
-        meds: emptyMeds,
-        redFlags: defaultRedFlags,
-      });
+      let cloudData;
+      try {
+        cloudData = await loadFamilySyncData({
+          profile,
+          ygtss: defaultYgtss,
+          puts: defaultPuts,
+          meds: emptyMeds,
+          redFlags: defaultRedFlags,
+        });
+      } catch (loadError) {
+        const isEmptyCloud = /No cloud family data|No child profile/i.test(loadError?.message || "");
+        if (!isEmptyCloud) throw loadError;
+        // Nothing was ever synced for this account. Instead of bouncing the
+        // user to another device, create the cloud family right here and
+        // start them fresh — sign-in always succeeds.
+        setRestoreMessage("No synced data yet — setting up a fresh family on the server...");
+        const freshProfile = { ...defaultProfile, setupComplete: true, childName: profile.childName || "Child" };
+        await ensureCloudFamilyAndChild(data.session.user.id, freshProfile);
+        cloudData = {
+          logs: [],
+          journals: [],
+          profile: freshProfile,
+          ygtss: defaultYgtss,
+          puts: defaultPuts,
+          meds: emptyMeds,
+          redFlags: defaultRedFlags,
+        };
+      }
       onRestore(cloudData, {
         childCode: restoreChildCode,
         parentPin: restoreParentPin,
@@ -917,14 +940,10 @@ function SetupView({ profile, onRestore, installPrompt, isInstalled, updateReady
         <Panel className="restore-panel">
           <div className="panel-title-row">
             <div>
-              <h2>Already set up on another device?</h2>
-              <p className="panel-subtitle">Sign in with the parent account, then this tablet will load the child profile and saved logs.</p>
+              <h2>Have a parent account?</h2>
+              <p className="panel-subtitle">Sign in and you're done. Synced data loads automatically — if nothing was synced yet, a fresh family is created for this account.</p>
             </div>
             <CloudDownload className="title-wave" aria-hidden="true" />
-          </div>
-          <div className="restore-note">
-            <Check size={18} />
-            <p>First, on the desktop profile, open Account & Sync, create or sign in to the parent account, then tap Sync tablet data to server.</p>
           </div>
           {!isSupabaseConfigured && (
             <div className="setup-box">
@@ -961,7 +980,7 @@ function SetupView({ profile, onRestore, installPrompt, isInstalled, updateReady
                 />
               </label>
               <label>
-                Child code for this tablet
+                Child code for this device
                 <input
                   value={restoreChildCode}
                   onChange={(event) => setRestoreChildCode(cleanCode(event.target.value))}
@@ -973,7 +992,7 @@ function SetupView({ profile, onRestore, installPrompt, isInstalled, updateReady
                 />
               </label>
               <label>
-                Parent PIN for this tablet
+                Parent PIN for this device
                 <input
                   value={restoreParentPin}
                   onChange={(event) => setRestoreParentPin(cleanCode(event.target.value))}
@@ -992,7 +1011,7 @@ function SetupView({ profile, onRestore, installPrompt, isInstalled, updateReady
                   Forgot password
                 </button>
                 <button className="primary-button" type="submit" disabled={!isSupabaseConfigured || restoreBusy}>
-                  <CloudDownload size={17} /> {restoreBusy ? "Restoring..." : "Restore on this tablet"}
+                  <CloudDownload size={17} /> {restoreBusy ? "Signing in..." : "Sign in and restore"}
                 </button>
               </div>
             </div>
@@ -2679,33 +2698,8 @@ function AccountSyncView({
     setMessage(result);
   }
 
-  async function ensureFamilyAndChild(userId) {
-    const parentName = profile.parentName || "";
-    const { data: family, error: familyError } = await supabase
-      .from("families")
-      .upsert(
-        { owner_user_id: userId, parent_name: parentName, updated_at: new Date().toISOString() },
-        { onConflict: "owner_user_id" },
-      )
-      .select()
-      .single();
-    if (familyError) throw familyError;
-
-    const { data: child, error: childError } = await supabase
-      .from("children")
-      .upsert(
-        {
-          family_id: family.id,
-          display_name: profile.childName || "Child",
-          local_profile: profile,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "family_id" },
-      )
-      .select()
-      .single();
-    if (childError) throw childError;
-    return { family, child };
+  function ensureFamilyAndChild(userId) {
+    return ensureCloudFamilyAndChild(userId, profile);
   }
 
   async function syncToCloud() {
@@ -3331,6 +3325,34 @@ function mapCloudLog(row) {
     note: row.note || "No note added",
     pain: row.pain || "None",
   };
+}
+
+async function ensureCloudFamilyAndChild(userId, profile) {
+  const { data: family, error: familyError } = await supabase
+    .from("families")
+    .upsert(
+      { owner_user_id: userId, parent_name: profile.parentName || "", updated_at: new Date().toISOString() },
+      { onConflict: "owner_user_id" },
+    )
+    .select()
+    .single();
+  if (familyError) throw familyError;
+
+  const { data: child, error: childError } = await supabase
+    .from("children")
+    .upsert(
+      {
+        family_id: family.id,
+        display_name: profile.childName || "Child",
+        local_profile: profile,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "family_id" },
+    )
+    .select()
+    .single();
+  if (childError) throw childError;
+  return { family, child };
 }
 
 async function loadFamilySyncData({ profile, ygtss, puts, meds, redFlags }) {
