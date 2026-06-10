@@ -647,6 +647,16 @@ textarea { min-height: 92px; padding: 12px; resize: vertical; }
   border: 1px solid var(--faint);
   border-radius: 8px;
   background: var(--surface-soft);
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+.prompt-card:hover, .prompt-card:focus-visible {
+  border-color: var(--teal);
+  background: var(--teal-soft);
 }
 .prompt-card > span {
   display: grid;

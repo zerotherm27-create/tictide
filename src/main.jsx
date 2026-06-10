@@ -2064,6 +2064,9 @@ const moodEmojis = {
 };
 
 function JournalView(props) {
+  function addPromptToNote(question) {
+    props.setNote((props.note ? props.note.trimEnd() + "\n" : "") + question + " ");
+  }
   return (
     <section className="view-stack">
       <div className="journal-grid">
@@ -2139,13 +2142,16 @@ function JournalView(props) {
 
         <Panel className="journal-prompts">
           <div className="panel-title-row">
-            <h2>Gentle prompts</h2>
+            <div>
+              <h2>Gentle prompts</h2>
+              <p className="panel-subtitle">Tap one to start your note with it.</p>
+            </div>
             <Lightbulb className="title-wave" />
           </div>
           <div className="prompt-list">
-            <PromptCard icon={<Smile />} title="Feeling" text="What emotion was strongest right before or after the tic?" />
-            <PromptCard icon={<Activity />} title="Body signal" text="Where did the urge or pressure show up first?" />
-            <PromptCard icon={<Waves />} title="Support" text="What made the wave smaller, even a little?" />
+            <PromptCard icon={<Smile />} title="Feeling" text="What emotion was strongest right before or after the tic?" onPick={addPromptToNote} />
+            <PromptCard icon={<Activity />} title="Body signal" text="Where did the urge or pressure show up first?" onPick={addPromptToNote} />
+            <PromptCard icon={<Waves />} title="Support" text="What made the wave smaller, even a little?" onPick={addPromptToNote} />
           </div>
           <div className="stat-row">
             <SmallStat label="Entries" value={props.journals.length} note="Private on device" />
@@ -2170,15 +2176,15 @@ function JournalView(props) {
   );
 }
 
-function PromptCard({ icon, title, text }) {
+function PromptCard({ icon, title, text, onPick }) {
   return (
-    <article className="prompt-card">
+    <button type="button" className="prompt-card" onClick={() => onPick(text)}>
       <span>{icon}</span>
       <div>
         <strong>{title}</strong>
         <p>{text}</p>
       </div>
-    </article>
+    </button>
   );
 }
 
