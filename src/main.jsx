@@ -1822,12 +1822,6 @@ function ParentHomeView(props) {
                 <strong>4-4-6 coach</strong>
                 <p>Follow the prompt: inhale for 4, hold for 4, then exhale slowly for 6.</p>
               </div>
-              <MetricDots label="Urge level" value={props.urge} total={10} />
-              <label className="range-label">
-                <span>Intensity</span>
-                <input type="range" min="1" max="10" value={props.intensity} onChange={(event) => props.setIntensity(event.target.value)} />
-                <em>Mild to severe</em>
-              </label>
               <button className="primary-button" type="button" onClick={() => props.setRunning((value) => !value)}>
                 {props.running ? "Pause breathing" : "Start 4-4-6 coach"}
               </button>
@@ -3203,20 +3197,6 @@ function ContextChips({ selected, onToggle, options = contextOptions, prompt = "
             {React.cloneElement(iconMap[context], { size: 15, "aria-hidden": true })}
             {context}
           </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function MetricDots({ label, value, total }) {
-  return (
-    <div className="metric-dots">
-      <p>{label}</p>
-      <strong>{value}<span>/10</span></strong>
-      <div aria-hidden="true">
-        {Array.from({ length: total }).map((_, index) => (
-          <i key={index} className={index < value ? "filled" : ""} />
         ))}
       </div>
     </div>
