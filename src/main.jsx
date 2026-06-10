@@ -1397,6 +1397,7 @@ function ChildHomeView(props) {
             <button
               key={label}
               type="button"
+              aria-pressed={props.selectedContexts.includes(label)}
               className={`cv2-chip ${props.selectedContexts.includes(label) ? "cv2-chip-on" : "cv2-chip-off"}`}
               onClick={() => props.toggleContext(label)}
             >
@@ -1653,6 +1654,7 @@ function ChildLogForm({ defaultContexts = [], onSave, onClose }) {
                 <button
                   key={label}
                   type="button"
+                  aria-pressed={contexts.includes(label)}
                   className={`cv2-chip ${contexts.includes(label) ? "cv2-chip-on" : "cv2-chip-off"}`}
                   onClick={() => toggleCtx(label)}
                 >
@@ -1787,12 +1789,17 @@ function ChildTipsView({ onBack }) {
 }
 
 function ParentHomeView(props) {
+  const ringRef = React.useRef(null);
+  function startCalm() {
+    props.setRunning(true);
+    ringRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
   return (
     <>
       <YgtssBanner ygtss={props.ygtss} onStartCheckin={props.onYgtssCheckin} />
       <section className="quick-grid" aria-label="Quick actions">
-        <ActionCard tone="coral" icon={<Plus />} title="Log Tic" text="Record tic, urge, pain, context" onClick={props.onAdd} />
-        <ActionCard tone="teal" icon={<Waves />} title="Calm Mode" text="Breathing and grounding" onClick={() => props.setRunning(true)} />
+        <ActionCard tone="coral" primary icon={<Plus />} title="Log Tic" text="Record tic, urge, pain, context" onClick={props.onAdd} />
+        <ActionCard tone="teal" icon={<Waves />} title="Calm Mode" text="Breathing and grounding" onClick={startCalm} />
         <ActionCard tone="green" icon={<NotebookPen />} title="Journal" text="Mood, urge, body feeling" onClick={props.onJournal} />
         <ActionCard
           tone="gold"
@@ -1810,7 +1817,7 @@ function ParentHomeView(props) {
             <Waves className="title-wave" aria-hidden="true" />
           </div>
           <div className="calm-layout">
-            <div className="breathing-ring" aria-label="Breathing timer" data-phase={props.breathingGuide.label.toLowerCase()}>
+            <div className="breathing-ring" ref={ringRef} aria-label="Breathing timer" data-phase={props.breathingGuide.label.toLowerCase()}>
               <span>{props.breathingGuide.label}</span>
               <strong>
                 {props.breathingGuide.beat}
@@ -1827,7 +1834,7 @@ function ParentHomeView(props) {
               </button>
             </div>
           </div>
-          <ContextChips selected={props.selectedContexts} onToggle={props.toggleContext} />
+          <ContextChips selected={props.selectedContexts} onToggle={props.toggleContext} prompt="tap to pre-fill your next log" />
           <CbitSupportPanel />
         </Panel>
 
@@ -1842,7 +1849,11 @@ function ParentHomeView(props) {
           <div className="stat-row">
             <SmallStat label="Avg. urge" value={props.stats.avgUrge} note="This week" />
             <SmallStat label="Total logs" value={props.logs.length} note="Saved privately" />
-            <SmallStat label="Journal mood" value={props.journalStats.commonMood} note={`${props.journals.length} entries`} />
+            <SmallStat
+              label="Journal mood"
+              value={props.journals.length === 0 ? "—" : props.journalStats.commonMood}
+              note={props.journals.length === 0 ? "No entries yet" : `${props.journals.length} entries`}
+            />
           </div>
         </Panel>
       </section>
@@ -1853,13 +1864,21 @@ function ParentHomeView(props) {
 }
 
 function YgtssBanner({ ygtss, onStartCheckin }) {
-  const [dismissed, setDismissed] = useState(false);
-  if (dismissed || hasEntryThisWeek(ygtss)) return null;
   const monday = getMondayISO(new Date());
+  // Dismissal sticks for the whole week (keyed on the Monday), so the banner
+  // doesn't resurrect on every tab change after the parent said "not now".
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return localStorage.getItem("tictide.ygtssBannerDismissed.v1") === monday;
+    } catch {
+      return false;
+    }
+  });
+  if (dismissed || hasEntryThisWeek(ygtss)) return null;
   const sun = new Date(monday + "T12:00:00");
   sun.setDate(sun.getDate() + 6);
   const fmt = (d) =>
-    new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric" });
   const range = `${fmt(monday)} – ${fmt(sun)}`;
   return (
     <div className="ygtss-banner">
@@ -1874,7 +1893,19 @@ function YgtssBanner({ ygtss, onStartCheckin }) {
         <button className="ygtss-banner-cta" type="button" onClick={onStartCheckin}>
           Start check-in →
         </button>
-        <button className="ygtss-banner-dismiss" type="button" aria-label="Dismiss" onClick={() => setDismissed(true)}>
+        <button
+          className="ygtss-banner-dismiss"
+          type="button"
+          aria-label="Dismiss for this week"
+          onClick={() => {
+            try {
+              localStorage.setItem("tictide.ygtssBannerDismissed.v1", monday);
+            } catch {
+              // Storage unavailable — dismiss for this render only.
+            }
+            setDismissed(true);
+          }}
+        >
           ✕
         </button>
       </div>
@@ -2155,7 +2186,11 @@ function JournalView(props) {
           </div>
           <div className="stat-row">
             <SmallStat label="Entries" value={props.journals.length} note="Private on device" />
-            <SmallStat label="Common mood" value={props.journalStats.commonMood} note="Recent entries" />
+            <SmallStat
+              label="Common mood"
+              value={props.journals.length === 0 ? "—" : props.journalStats.commonMood}
+              note={props.journals.length === 0 ? "No entries yet" : "Recent entries"}
+            />
             <SmallStat label="Avg. pressure" value={props.journalStats.avgPressure} note="Out of 10" />
           </div>
         </Panel>
@@ -2356,7 +2391,7 @@ function fmtWeekRange(weekOf) {
   const monday = new Date(weekOf + "T12:00:00");
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
-  const fmt = (d) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const fmt = (d) => d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   return `${fmt(monday)} – ${fmt(sunday)}`;
 }
 
@@ -3033,14 +3068,13 @@ function CbitSupportPanel({ isChildMode = false }) {
       ];
 
   return (
-    <div className="cbit-panel">
-      <div className="panel-title-row">
-        <div>
-          <h3>CBIT support tools</h3>
-          <p className="panel-subtitle">These are support steps inspired by CBIT. Full CBIT works best with a trained therapist and a tic-specific plan.</p>
-        </div>
-        <Brain className="title-wave" />
-      </div>
+    <details className="cbit-panel">
+      <summary className="cbit-summary">
+        <Brain size={18} aria-hidden="true" />
+        <strong>CBIT support steps</strong>
+        <ChevronDown size={16} className="cbit-caret" aria-hidden="true" />
+      </summary>
+      <p className="panel-subtitle">These are support steps inspired by CBIT. Full CBIT works best with a trained therapist and a tic-specific plan.</p>
       <div className="check-list">
         {items.map((item) => (
           <p key={item}>
@@ -3048,7 +3082,7 @@ function CbitSupportPanel({ isChildMode = false }) {
           </p>
         ))}
       </div>
-    </div>
+    </details>
   );
 }
 
@@ -3141,9 +3175,9 @@ function NavButton({ icon, label, active, onClick }) {
   );
 }
 
-function ActionCard({ tone, icon, title, text, onClick }) {
+function ActionCard({ tone, icon, title, text, onClick, primary = false }) {
   return (
-    <button className="action-card" type="button" onClick={onClick}>
+    <button className={`action-card ${primary ? "action-card-primary" : ""}`} type="button" onClick={onClick}>
       <span className={`action-icon ${tone}`}>{React.cloneElement(icon, { size: 28, "aria-hidden": true })}</span>
       <span>
         <strong>{title}</strong>
@@ -3199,7 +3233,7 @@ function ContextChips({ selected, onToggle, options = contextOptions, prompt = "
       <p>Context <span>{prompt}</span></p>
       <div className="chip-row">
         {options.map((context) => (
-          <button key={context} type="button" className={`chip ${selected.includes(context) ? "selected" : ""}`} onClick={() => onToggle(context)}>
+          <button key={context} type="button" aria-pressed={selected.includes(context)} className={`chip ${selected.includes(context) ? "selected" : ""}`} onClick={() => onToggle(context)}>
             {React.cloneElement(iconMap[context], { size: 15, "aria-hidden": true })}
             {context}
           </button>
@@ -3212,20 +3246,26 @@ function ContextChips({ selected, onToggle, options = contextOptions, prompt = "
 function MiniChart({ days }) {
   const max = Math.max(...days.map((day) => day.total), 1);
   return (
-    <div className="mini-chart" aria-label="Weekly tic log chart">
-      {days.map((day) => {
-        const motorHeight = day.motor > 0 ? `${Math.max(18, (day.motor / max) * 120)}px` : "0px";
-        const vocalHeight = day.vocal > 0 ? `${Math.max(10, (day.vocal / max) * 80)}px` : "0px";
-        return (
-          <div className="bar-col" key={day.label}>
-            <span>
-              <i style={{ height: motorHeight }} />
-              <b style={{ height: vocalHeight }} />
-            </span>
-            <em>{day.label}</em>
-          </div>
-        );
-      })}
+    <div>
+      <div className="mini-chart" aria-label="Weekly tic log chart, motor and vocal tics per day">
+        {days.map((day) => {
+          const motorHeight = day.motor > 0 ? `${Math.max(18, (day.motor / max) * 120)}px` : "0px";
+          const vocalHeight = day.vocal > 0 ? `${Math.max(10, (day.vocal / max) * 80)}px` : "0px";
+          return (
+            <div className="bar-col" key={day.label}>
+              <span>
+                <i style={{ height: motorHeight }} />
+                <b style={{ height: vocalHeight }} />
+              </span>
+              <em>{day.label}</em>
+            </div>
+          );
+        })}
+      </div>
+      <div className="chart-legend">
+        <span className="chart-legend-motor">Motor</span>
+        <span className="chart-legend-vocal">Vocal</span>
+      </div>
     </div>
   );
 }

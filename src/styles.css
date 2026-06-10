@@ -2109,6 +2109,51 @@ button:disabled {
   border-radius: 8px;
 }
 
+/* ── Parent home audit fixes ── */
+.chart-legend {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  margin-top: 8px;
+  font-size: 0.78rem;
+  font-weight: 750;
+  color: var(--muted);
+}
+.chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.chart-legend span::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+.chart-legend-motor::before { background: var(--teal); }
+.chart-legend-vocal::before { background: var(--gold); }
+
+.action-card.action-card-primary {
+  background: var(--coral);
+  border-color: var(--coral);
+  color: white;
+}
+.action-card.action-card-primary strong { color: white; }
+.action-card.action-card-primary em { color: rgba(255, 255, 255, 0.85); }
+.action-card.action-card-primary .action-icon { background: rgba(255, 255, 255, 0.18); color: white; }
+.action-card.action-card-primary svg:last-child { color: rgba(255, 255, 255, 0.85); }
+
+.cbit-summary {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+  list-style: none;
+  color: var(--teal-dark);
+  font-size: 0.95rem;
+}
+.cbit-summary::-webkit-details-marker { display: none; }
+.cbit-summary svg:first-child { color: var(--teal); flex: 0 0 auto; }
+.cbit-caret { margin-left: auto; color: var(--muted); transition: transform 0.15s ease; }
+details[open] > .cbit-summary .cbit-caret { transform: rotate(180deg); }
+.cbit-panel > .panel-subtitle { margin-top: 10px; }
+
 /* ══════════════════════════════════════
    CHILD MODE — SCALE UP ON BIG SCREENS
    The child UI is phone-first (480px). On tablets and desktops, zoom the
