@@ -191,6 +191,52 @@ function App() {
   const isChildLocked = appMode === "child-lock";
   const needsSetup = !profile.setupComplete;
 
+  // ── Family Sync autosync ─────────────────────────────────────────────────
+  const [syncSession, setSyncSession] = useState(null);
+  const autoPulledRef = React.useRef(false);
+  useEffect(() => {
+    if (!supabase) return;
+    let mounted = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (mounted) setSyncSession(data.session || null);
+    });
+    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSyncSession(nextSession || null);
+    });
+    return () => {
+      mounted = false;
+      data.subscription.unsubscribe();
+    };
+  }, []);
+
+  // Pull once per app start after sign-in: merge cloud logs/journals into
+  // local so entries made on the other device appear without manual loading.
+  useEffect(() => {
+    if (!syncSession?.user || needsSetup || autoPulledRef.current) return;
+    autoPulledRef.current = true;
+    (async () => {
+      try {
+        const cloud = await loadFamilySyncData({ profile, ygtss, puts, meds, redFlags });
+        setLogs((prev) => mergeEntriesById(cloud.logs, prev));
+        setJournals((prev) => mergeEntriesById(cloud.journals, prev));
+      } catch {
+        // Empty cloud or offline — the auto-push below populates it.
+      }
+    })();
+  }, [syncSession, needsSetup]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Debounced auto-push: any data change while signed in uploads ~5s later,
+  // so neither device ever needs the manual sync button.
+  useEffect(() => {
+    if (!syncSession?.user || needsSetup) return;
+    const timer = setTimeout(() => {
+      pushFamilySyncData(syncSession.user.id, { profile, logs, journals, ygtss, puts, meds, redFlags }).catch(() => {
+        // Offline or transient server error — the next change retries.
+      });
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [syncSession, needsSetup, profile, logs, journals, ygtss, puts, meds, redFlags]);
+
   useEffect(() => {
     const standalone =
       window.matchMedia("(display-mode: standalone)").matches ||
@@ -2733,69 +2779,12 @@ function AccountSyncView({
     setMessage(result);
   }
 
-  function ensureFamilyAndChild(userId) {
-    return ensureCloudFamilyAndChild(userId, profile);
-  }
-
   async function syncToCloud() {
     if (!supabase || !session?.user) return;
     setBusy(true);
     setMessage("Uploading tablet data to Family Sync...");
     try {
-      const { family, child } = await ensureFamilyAndChild(session.user.id);
-      const logRows = logs.map((log) => ({
-        family_id: family.id,
-        child_id: child.id,
-        local_id: log.id,
-        created_at: log.createdAt,
-        tic_name: log.ticName,
-        tic_type: log.ticType,
-        intensity: Number(log.intensity),
-        urge: Number(log.urge),
-        pain: log.pain || "None",
-        contexts: log.contexts || [],
-        note: log.note || "",
-        synced_at: new Date().toISOString(),
-      }));
-      if (logRows.length > 0) {
-        const { error } = await supabase.from("tic_logs").upsert(logRows, { onConflict: "child_id,local_id" });
-        if (error) throw error;
-      }
-
-      const journalRows = journals.map((entry) => ({
-        family_id: family.id,
-        child_id: child.id,
-        local_id: entry.id,
-        created_at: entry.createdAt,
-        mood: entry.mood,
-        urge_before: Number(entry.urgeBefore),
-        tic_pressure: Number(entry.ticPressure),
-        body_feeling: entry.bodyFeeling || "",
-        trigger: entry.trigger || "",
-        helped: entry.helped || "",
-        note: entry.note || "",
-        synced_at: new Date().toISOString(),
-      }));
-      if (journalRows.length > 0) {
-        const { error } = await supabase.from("journal_entries").upsert(journalRows, { onConflict: "child_id,local_id" });
-        if (error) throw error;
-      }
-
-      const { error: snapshotError } = await supabase.from("care_snapshots").upsert(
-        {
-          child_id: child.id,
-          family_id: family.id,
-          profile,
-          ygtss,
-          puts,
-          meds,
-          red_flags: redFlags,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "child_id" },
-      );
-      if (snapshotError) throw snapshotError;
-
+      await pushFamilySyncData(session.user.id, { profile, logs, journals, ygtss, puts, meds, redFlags });
       setMessage(`Synced ${logs.length} logs and ${journals.length} journal entries to the parent account.`);
     } catch (error) {
       setMessage(`Sync failed: ${error.message}`);
@@ -2907,7 +2896,7 @@ function AccountSyncView({
         <div className="panel-title-row">
           <div>
             <h2>Family Sync</h2>
-            <p className="panel-subtitle">Upload from the tablet, then load from your own device using the same parent account.</p>
+            <p className="panel-subtitle">Changes sync automatically while you're signed in. These buttons force an immediate sync if you don't want to wait.</p>
           </div>
           <CloudUpload className="title-wave" />
         </div>
@@ -3379,6 +3368,73 @@ async function ensureCloudFamilyAndChild(userId, profile) {
     .single();
   if (childError) throw childError;
   return { family, child };
+}
+
+async function pushFamilySyncData(userId, { profile, logs, journals, ygtss, puts, meds, redFlags }) {
+  const { family, child } = await ensureCloudFamilyAndChild(userId, profile);
+  const now = new Date().toISOString();
+
+  const logRows = logs.map((log) => ({
+    family_id: family.id,
+    child_id: child.id,
+    local_id: log.id,
+    created_at: log.createdAt,
+    tic_name: log.ticName,
+    tic_type: log.ticType,
+    intensity: Number(log.intensity),
+    urge: Number(log.urge),
+    pain: log.pain || "None",
+    contexts: log.contexts || [],
+    note: log.note || "",
+    synced_at: now,
+  }));
+  if (logRows.length > 0) {
+    const { error } = await supabase.from("tic_logs").upsert(logRows, { onConflict: "child_id,local_id" });
+    if (error) throw error;
+  }
+
+  const journalRows = journals.map((entry) => ({
+    family_id: family.id,
+    child_id: child.id,
+    local_id: entry.id,
+    created_at: entry.createdAt,
+    mood: entry.mood,
+    urge_before: Number(entry.urgeBefore),
+    tic_pressure: Number(entry.ticPressure),
+    body_feeling: entry.bodyFeeling || "",
+    trigger: entry.trigger || "",
+    helped: entry.helped || "",
+    note: entry.note || "",
+    synced_at: now,
+  }));
+  if (journalRows.length > 0) {
+    const { error } = await supabase.from("journal_entries").upsert(journalRows, { onConflict: "child_id,local_id" });
+    if (error) throw error;
+  }
+
+  const { error: snapshotError } = await supabase.from("care_snapshots").upsert(
+    {
+      child_id: child.id,
+      family_id: family.id,
+      profile,
+      ygtss,
+      puts,
+      meds,
+      red_flags: redFlags,
+      updated_at: now,
+    },
+    { onConflict: "child_id" },
+  );
+  if (snapshotError) throw snapshotError;
+}
+
+// Union of cloud and local entries by id, newest first. Local entries the
+// cloud doesn't know about survive — the next auto-push uploads them.
+function mergeEntriesById(cloudEntries, localEntries) {
+  const seen = new Set(cloudEntries.map((entry) => entry.id));
+  return [...cloudEntries, ...localEntries.filter((entry) => !seen.has(entry.id))].sort(
+    (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+  );
 }
 
 async function loadFamilySyncData({ profile, ygtss, puts, meds, redFlags }) {
