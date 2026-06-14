@@ -194,6 +194,10 @@ function App() {
   // ── Family Sync autosync ─────────────────────────────────────────────────
   const [syncSession, setSyncSession] = useState(null);
   const autoPulledRef = React.useRef(false);
+  // Auto-push is blocked until auto-pull finishes so Device B (fresh install)
+  // never overwrites the server with empty local defaults before downloading
+  // the existing cloud data.
+  const pullCompleteRef = React.useRef(false);
   useEffect(() => {
     if (!supabase) return;
     let mounted = true;
@@ -209,8 +213,10 @@ function App() {
     };
   }, []);
 
-  // Pull once per app start after sign-in: merge cloud logs/journals into
-  // local so entries made on the other device appear without manual loading.
+  // Pull once per app start after sign-in. Merges logs/journals so
+  // local-only entries survive. For profile/care fields, takes cloud data
+  // only when cloud is non-empty — this preserves Device A's real data if
+  // the cloud was previously corrupted with empty defaults.
   useEffect(() => {
     if (!syncSession?.user || needsSetup || autoPulledRef.current) return;
     autoPulledRef.current = true;
@@ -219,16 +225,26 @@ function App() {
         const cloud = await loadFamilySyncData({ profile, ygtss, puts, meds, redFlags });
         setLogs((prev) => mergeEntriesById(cloud.logs, prev));
         setJournals((prev) => mergeEntriesById(cloud.journals, prev));
+        // Only overwrite local care data if cloud has a non-empty value so we
+        // don't replace real Device A data with corrupted empty cloud state.
+        if (cloud.profile?.childName) setProfile(cloud.profile);
+        if (cloud.ygtss?.length > 0) setYgtss(cloud.ygtss);
+        if (cloud.meds?.length > 0) setMeds(cloud.meds);
+        setPuts(cloud.puts);
+        setRedFlags(cloud.redFlags);
       } catch {
         // Empty cloud or offline — the auto-push below populates it.
+      } finally {
+        pullCompleteRef.current = true;
       }
     })();
   }, [syncSession, needsSetup]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Debounced auto-push: any data change while signed in uploads ~5s later,
-  // so neither device ever needs the manual sync button.
+  // Debounced auto-push: any data change while signed in uploads ~5s later.
+  // Blocked until auto-pull completes so a fresh Device B never overwrites
+  // cloud data with empty local state during the first sign-in.
   useEffect(() => {
-    if (!syncSession?.user || needsSetup) return;
+    if (!syncSession?.user || needsSetup || !pullCompleteRef.current) return;
     const timer = setTimeout(() => {
       pushFamilySyncData(syncSession.user.id, { profile, logs, journals, ygtss, puts, meds, redFlags }).catch(() => {
         // Offline or transient server error — the next change retries.
