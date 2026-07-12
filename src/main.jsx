@@ -38,6 +38,7 @@ import Stethoscope from "lucide-react/dist/esm/icons/stethoscope.js";
 import SunMedium from "lucide-react/dist/esm/icons/sun-medium.js";
 import UserRound from "lucide-react/dist/esm/icons/user-round.js";
 import Waves from "lucide-react/dist/esm/icons/waves.js";
+import WifiOff from "lucide-react/dist/esm/icons/wifi-off.js";
 import { isSupabaseConfigured, supabase } from "./supabaseClient.js";
 import "./styles.css";
 
@@ -152,6 +153,8 @@ function App() {
   const [running, setRunning] = useState(false);
   const [installPrompt, setInstallPrompt] = useState(null);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [isOnline, setIsOnline] = useState(() => (typeof navigator === "undefined" ? true : navigator.onLine));
+  const [serviceWorkerReady, setServiceWorkerReady] = useState(false);
   const [waitingWorker, setWaitingWorker] = useState(null);
   const [updateReady, setUpdateReady] = useState(false);
   const isChildMode = appMode === "child";
@@ -183,8 +186,22 @@ function App() {
   }, []);
 
   useEffect(() => {
+    function updateOnlineState() {
+      setIsOnline(navigator.onLine);
+    }
+
+    window.addEventListener("online", updateOnlineState);
+    window.addEventListener("offline", updateOnlineState);
+    return () => {
+      window.removeEventListener("online", updateOnlineState);
+      window.removeEventListener("offline", updateOnlineState);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!import.meta.env.PROD || !("serviceWorker" in navigator)) return;
     let refreshing = false;
+    let registrationRef;
 
     function refreshOnControllerChange() {
       if (refreshing) return;
@@ -192,9 +209,23 @@ function App() {
       window.location.reload();
     }
 
+    function checkForUpdate() {
+      registrationRef?.update().catch(() => {});
+    }
+
+    function updateOnVisibility() {
+      if (document.visibilityState === "visible") {
+        checkForUpdate();
+      }
+    }
+
     navigator.serviceWorker.addEventListener("controllerchange", refreshOnControllerChange);
 
     navigator.serviceWorker.register("/public-sw.js").then((registration) => {
+      registrationRef = registration;
+      setServiceWorkerReady(Boolean(navigator.serviceWorker.controller || registration.active));
+      checkForUpdate();
+
       if (registration.waiting) {
         setWaitingWorker(registration.waiting);
         setUpdateReady(true);
@@ -208,11 +239,22 @@ function App() {
             setWaitingWorker(nextWorker);
             setUpdateReady(true);
           }
+          if (nextWorker.state === "activated") {
+            setServiceWorkerReady(true);
+          }
         });
       });
     }).catch(() => {});
 
-    return () => navigator.serviceWorker.removeEventListener("controllerchange", refreshOnControllerChange);
+    navigator.serviceWorker.ready.then(() => setServiceWorkerReady(true)).catch(() => {});
+    document.addEventListener("visibilitychange", updateOnVisibility);
+    window.addEventListener("online", checkForUpdate);
+
+    return () => {
+      navigator.serviceWorker.removeEventListener("controllerchange", refreshOnControllerChange);
+      document.removeEventListener("visibilitychange", updateOnVisibility);
+      window.removeEventListener("online", checkForUpdate);
+    };
   }, []);
 
   useEffect(() => {
@@ -370,6 +412,8 @@ function App() {
         profile={profile}
         installPrompt={installPrompt}
         isInstalled={isInstalled}
+        isOnline={isOnline}
+        serviceWorkerReady={serviceWorkerReady}
         updateReady={updateReady}
         onInstall={installApp}
         onUpdate={activateUpdate}
@@ -445,6 +489,8 @@ function App() {
         <PwaPrompt
           installPrompt={installPrompt}
           isInstalled={isInstalled}
+          isOnline={isOnline}
+          serviceWorkerReady={serviceWorkerReady}
           updateReady={updateReady}
           onInstall={installApp}
           onUpdate={activateUpdate}
@@ -610,7 +656,7 @@ function App() {
   );
 }
 
-function SetupView({ profile, installPrompt, isInstalled, updateReady, onInstall, onUpdate, onComplete }) {
+function SetupView({ profile, installPrompt, isInstalled, isOnline, serviceWorkerReady, updateReady, onInstall, onUpdate, onComplete }) {
   const isLegacyDemoProfile = !profile.setupComplete && profile.childName === "Kai";
   const [childName, setChildName] = useState(profile.childName && !isLegacyDemoProfile ? profile.childName : "");
   const [parentName, setParentName] = useState(profile.parentName || "");
@@ -673,6 +719,8 @@ function SetupView({ profile, installPrompt, isInstalled, updateReady, onInstall
         <PwaPrompt
           installPrompt={installPrompt}
           isInstalled={isInstalled}
+          isOnline={isOnline}
+          serviceWorkerReady={serviceWorkerReady}
           updateReady={updateReady}
           onInstall={onInstall}
           onUpdate={onUpdate}
@@ -759,7 +807,19 @@ function SetupView({ profile, installPrompt, isInstalled, updateReady, onInstall
   );
 }
 
-function PwaPrompt({ installPrompt, isInstalled, updateReady, onInstall, onUpdate }) {
+function PwaPrompt({ installPrompt, isInstalled, isOnline, serviceWorkerReady, updateReady, onInstall, onUpdate }) {
+  if (!isOnline) {
+    return (
+      <div className="pwa-banner offline" role="status">
+        <div>
+          <strong>Working offline</strong>
+          <p>{serviceWorkerReady ? "TicTide is using the saved app shell and local private notes." : "Local private notes still save on this device."}</p>
+        </div>
+        <WifiOff size={20} aria-hidden="true" />
+      </div>
+    );
+  }
+
   if (updateReady) {
     return (
       <div className="pwa-banner" role="status">
@@ -774,7 +834,19 @@ function PwaPrompt({ installPrompt, isInstalled, updateReady, onInstall, onUpdat
     );
   }
 
-  if (!installPrompt || isInstalled) return null;
+  if (isInstalled) return null;
+
+  if (!installPrompt) {
+    return (
+      <div className="pwa-banner" role="status">
+        <div>
+          <strong>Home screen ready</strong>
+          <p>Use your browser’s Add to Home Screen option to install TicTide as an app.</p>
+        </div>
+        <CloudDownload size={20} aria-hidden="true" />
+      </div>
+    );
+  }
 
   return (
     <div className="pwa-banner" role="status">
@@ -2327,7 +2399,10 @@ function formatDate(value) {
 function formatLogTime(value) {
   const date = new Date(value);
   const sameDay = new Date().toDateString() === date.toDateString();
-  return `${sameDay ? "Today" : "Earlier"}, ${date.toLocaleTimeString([], {
+  const day = sameDay
+    ? "Today"
+    : date.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
+  return `${day}, ${date.toLocaleTimeString([], {
     hour: "numeric",
     minute: "2-digit",
   })}`;

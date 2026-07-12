@@ -197,6 +197,17 @@ h3 { margin: 0 0 12px; font-size: 0.98rem; }
 .pwa-banner .primary-button {
   flex: 0 0 auto;
 }
+.pwa-banner > svg {
+  flex: 0 0 auto;
+  color: var(--teal-dark);
+}
+.pwa-banner.offline {
+  border-color: rgba(198, 71, 71, 0.2);
+  background: linear-gradient(135deg, rgba(255, 231, 224, 0.94), rgba(255, 243, 207, 0.78));
+}
+.pwa-banner.offline > svg {
+  color: var(--danger);
+}
 
 .icon-button, .subtle-button, .secondary-button, .primary-button {
   display: inline-flex;

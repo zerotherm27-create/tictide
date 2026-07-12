@@ -3,14 +3,18 @@
   "name": "TicTide",
   "short_name": "TicTide",
   "description": "A private family tic and ADHD-pattern tracking companion.",
-  "start_url": "/",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
-  "display_override": ["standalone", "minimal-ui"],
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui", "browser"],
   "background_color": "#f7fbfb",
   "theme_color": "#08777d",
   "orientation": "portrait-primary",
   "categories": ["health", "productivity", "education"],
+  "prefer_related_applications": false,
+  "launch_handler": {
+    "client_mode": ["navigate-existing", "auto"]
+  },
   "icons": [
     {
       "src": "/icon.svg",

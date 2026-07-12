@@ -1,4 +1,5 @@
-const CACHE_NAME = "tictide-v5";
+const BUILD_ID = "__TICTIDE_BUILD_ID__";
+const CACHE_NAME = `tictide-${BUILD_ID}`;
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -11,6 +12,7 @@ const APP_SHELL = [
   "/icons/maskable-192.png",
   "/icons/maskable-512.png",
 ];
+const CACHEABLE_STATUS = [0, 200];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(cacheAppShell());
@@ -49,6 +51,11 @@ self.addEventListener("fetch", (event) => {
 
   if (isStaticAsset(url)) {
     event.respondWith(staleWhileRevalidate(event.request));
+    return;
+  }
+
+  if (isSameOriginDocument(event.request)) {
+    event.respondWith(networkFirstHtml(event));
   }
 });
 
@@ -97,9 +104,10 @@ async function networkFirstHtml(event) {
   const cache = await caches.open(CACHE_NAME);
   try {
     const preload = await event.preloadResponse;
-    const response = preload || (await fetch(event.request));
-    if (response && response.ok) {
-      cache.put("/", response.clone());
+    const response = preload || (await fetch(event.request, { cache: "no-store" }));
+    if (isCacheable(response)) {
+      await cache.put("/", response.clone());
+      await cache.put("/index.html", response.clone());
     }
     return response;
   } catch {
@@ -112,7 +120,7 @@ async function staleWhileRevalidate(request) {
   const cached = await cache.match(request);
   const fetched = fetch(request)
     .then((response) => {
-      if (response && response.ok) {
+      if (isCacheable(response)) {
         cache.put(request, response.clone());
       }
       return response;
@@ -120,4 +128,12 @@ async function staleWhileRevalidate(request) {
     .catch(() => undefined);
 
   return cached || (await fetched) || (await cache.match("/offline.html"));
+}
+
+function isSameOriginDocument(request) {
+  return request.destination === "document" || request.headers.get("accept")?.includes("text/html");
+}
+
+function isCacheable(response) {
+  return response && CACHEABLE_STATUS.includes(response.status);
 }
